@@ -8,11 +8,30 @@ const useTwinStore = create((set, get) => ({
   aiInsights: [],
   whatIfResult: null,
   presentationMode: false,
+  
+  historyBuffer: [],
+  isHistoricalMode: false,
+  historicalIndex: 0,
 
   setSelectedFloorId: (floorId) => set({ selectedFloorId: floorId }),
   setViewMode: (mode) => set({ viewMode: mode }),
   triggerScenario: (scenario) => set({ activeScenario: scenario }),
   togglePresentationMode: () => set(state => ({ presentationMode: !state.presentationMode })),
+  
+  setHistoricalState: (isHistorical, index) => set((state) => {
+    if (!isHistorical || state.historyBuffer.length === 0) {
+      return { 
+        isHistoricalMode: false, 
+        building: state.historyBuffer[state.historyBuffer.length - 1] || state.building 
+      };
+    }
+    const idx = Math.min(Math.max(0, index), state.historyBuffer.length - 1);
+    return {
+      isHistoricalMode: true,
+      historicalIndex: idx,
+      building: state.historyBuffer[idx] || state.building
+    };
+  }),
 
   socket: null,
 
@@ -29,9 +48,18 @@ const useTwinStore = create((set, get) => ({
       });
 
       socket.on('telemetry', (buildingData) => {
-        // Hydrate state from backend
-        set({
-          building: buildingData
+        // Hydrate state from backend and keep history
+        set((state) => {
+          const newHistory = [...state.historyBuffer, buildingData].slice(-300); // 5 minutes history
+          
+          if (state.isHistoricalMode) {
+            return { historyBuffer: newHistory }; // Don't update current building state
+          }
+          
+          return {
+            building: buildingData,
+            historyBuffer: newHistory
+          };
         });
       });
 

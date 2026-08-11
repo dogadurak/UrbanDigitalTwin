@@ -267,9 +267,101 @@ const Floor = ({ position, floorData, selected, isIsolated, onClick }) => {
           </div>
         </Html>
       )}
+
+      {/* Occupancy / People Simulation */}
+      <People floorData={floorData} isIsolated={isIsolated} selected={selected} />
     </group>
   );
 }
+
+const dummy = new THREE.Object3D();
+const People = ({ floorData, isIsolated, selected }) => {
+  const meshRef = useRef();
+  const viewMode = useTwinStore(state => state.viewMode);
+  
+  const isFireAlarm = floorData.zones[0]?.sensors?.fireSafety?.isAlarmActive;
+  const isFireMode = viewMode === 'FIRE';
+  const count = 25; // 25 people per floor
+  
+  const agents = React.useMemo(() => {
+    return Array.from({ length: count }, () => ({
+      x: (Math.random() - 0.5) * 8,
+      z: (Math.random() - 0.5) * 8,
+      vx: (Math.random() - 0.5) * 0.5,
+      vz: (Math.random() - 0.5) * 0.5,
+    }));
+  }, [count]);
+
+  useFrame((state, delta) => {
+    if (!meshRef.current) return;
+    
+    if ((isIsolated && !selected) || viewMode === 'HVAC' || viewMode === 'ENERGY') {
+      meshRef.current.visible = false;
+      return;
+    }
+    meshRef.current.visible = true;
+
+    agents.forEach((agent, i) => {
+      // Fire Evacuation Logic
+      if (isFireAlarm || isFireMode) {
+        // Move towards central shaft (x=0, z=0) which is the evacuation route
+        const dx = 0 - agent.x;
+        const dz = 0 - agent.z;
+        const dist = Math.sqrt(dx*dx + dz*dz);
+        if (dist > 0.8) {
+          agent.vx = (dx / dist) * 1.5;
+          agent.vz = (dz / dist) * 1.5;
+        } else {
+          agent.vx = 0; agent.vz = 0; // Reached exit
+        }
+      } else {
+        // Random wandering
+        if (Math.random() < 0.05) {
+          agent.vx += (Math.random() - 0.5) * 1.0;
+          agent.vz += (Math.random() - 0.5) * 1.0;
+        }
+        
+        // Clamp speed
+        const speed = Math.sqrt(agent.vx*agent.vx + agent.vz*agent.vz);
+        if (speed > 0.4) {
+          agent.vx = (agent.vx / speed) * 0.4;
+          agent.vz = (agent.vz / speed) * 0.4;
+        }
+      }
+      
+      // Boundary collision
+      if (agent.x < -4.5 || agent.x > 4.5) agent.vx *= -1;
+      if (agent.z < -4.5 || agent.z > 4.5) agent.vz *= -1;
+      
+      agent.x += agent.vx * delta;
+      agent.z += agent.vz * delta;
+
+      // Y position is relative to the floor group, so y=0.15 is on top of slab
+      dummy.position.set(agent.x, 0.25, agent.z);
+      // Bobbing animation for walking
+      if (agent.vx !== 0 || agent.vz !== 0) {
+        dummy.position.y += Math.sin(state.clock.elapsedTime * 15 + i) * 0.05;
+      }
+      
+      dummy.updateMatrix();
+      meshRef.current.setMatrixAt(i, dummy.matrix);
+    });
+    
+    meshRef.current.instanceMatrix.needsUpdate = true;
+  });
+
+  return (
+    <instancedMesh ref={meshRef} args={[null, null, count]}>
+      <cylinderGeometry args={[0.06, 0.06, 0.3, 8]} />
+      <meshStandardMaterial 
+        color={isFireAlarm ? "#ff0000" : "#00aaff"} 
+        emissive={isFireAlarm ? "#ff0000" : "#0044ff"}
+        emissiveIntensity={isFireAlarm ? 2 : 0.8}
+        roughness={0.2}
+      />
+    </instancedMesh>
+  );
+};
 
 const ElevatorSystem = () => {
   const elevators = useTwinStore((state) => state.building.elevators);
@@ -432,6 +524,48 @@ const PresentationDirector = () => {
   return null;
 }
 
+const RoofChiller = () => {
+  const floorCount = useTwinStore((state) => state.building?.floors.length || 0);
+  const viewMode = useTwinStore((state) => state.viewMode);
+  const isIsolated = useTwinStore((state) => state.selectedFloorId !== null);
+  
+  if (isIsolated || !floorCount) return null;
+  
+  const roofY = floorCount * 2.2 + 0.5;
+  const isHVAC = viewMode === 'HVAC';
+  
+  return (
+    <group position={[0, roofY, 0]}>
+      {[-2, 2].map((x, i) => (
+        <group key={`chiller-${i}`} position={[x, 0, 0]}>
+          {/* Main unit */}
+          <mesh position={[0, 1, 0]}>
+            <boxGeometry args={[2.5, 1.5, 3]} />
+            <meshStandardMaterial color={isHVAC ? "#00ffff" : "#64748b"} emissive={isHVAC ? "#00aaff" : "#000000"} emissiveIntensity={isHVAC ? 0.5 : 0} metalness={0.6} roughness={0.4} />
+          </mesh>
+          {/* Fans */}
+          <mesh position={[0, 1.76, -0.7]} rotation={[Math.PI/2, 0, 0]}>
+            <cylinderGeometry args={[0.5, 0.5, 0.1, 16]} />
+            <meshStandardMaterial color="#1e293b" />
+          </mesh>
+          <mesh position={[0, 1.76, 0.7]} rotation={[Math.PI/2, 0, 0]}>
+            <cylinderGeometry args={[0.5, 0.5, 0.1, 16]} />
+            <meshStandardMaterial color="#1e293b" />
+          </mesh>
+        </group>
+      ))}
+      
+      {/* Primary descending pipes connecting to shaft */}
+      {isHVAC && (
+        <mesh position={[0, -0.5, -2.5]}>
+          <cylinderGeometry args={[0.4, 0.4, 2, 16]} />
+          <meshStandardMaterial color="#00ffff" emissive="#00aaff" emissiveIntensity={3} metalness={0.8} roughness={0.2} />
+        </mesh>
+      )}
+    </group>
+  );
+};
+
 const CityContext = () => {
   // Generate random building blocks for the urban environment
   const buildings = React.useMemo(() => {
@@ -481,22 +615,49 @@ const CityContext = () => {
   );
 };
 
+const EnvironmentLighting = () => {
+  const timeOfDay = useTwinStore(state => state.building?.timeOfDay) || 12;
+  
+  const isDay = timeOfDay > 6 && timeOfDay < 18;
+  const sunAngle = ((timeOfDay - 6) / 12) * Math.PI; // 0 at 6am, PI at 6pm
+  
+  const sunX = Math.cos(sunAngle) * 30;
+  const sunY = Math.sin(sunAngle) * 30;
+  const sunIntensity = isDay ? Math.max(0, Math.sin(sunAngle)) * 3.0 : 0;
+  const ambientIntensity = isDay ? 0.5 + Math.sin(sunAngle) * 1.0 : 0.2;
+  
+  // Sky color lerp based on time
+  const skyColor = new THREE.Color();
+  if (isDay) {
+    skyColor.lerpColors(new THREE.Color("#ff8844"), new THREE.Color("#88ccff"), Math.sin(sunAngle)); // Sunrise/Sunset to Noon
+  } else {
+    skyColor.set("#020410"); // Night
+  }
+
+  return (
+    <>
+      <color attach="background" args={[skyColor.getStyle()]} />
+      <ambientLight intensity={ambientIntensity} />
+      <directionalLight position={[sunX, sunY, 15]} intensity={sunIntensity} color="#ffffff" />
+      <pointLight position={[-10, 5, -10]} intensity={isDay ? 0.5 : 1.5} color={isDay ? "#ffffff" : "#00aaff"} />
+      <hemisphereLight skyColor={skyColor.getStyle()} groundColor={isDay ? "#0044ff" : "#000510"} intensity={isDay ? 0.5 : 0.1} />
+    </>
+  );
+};
+
 const Scene = () => {
   const controlsRef = useRef();
 
   return (
     <div className="w-full h-full cursor-grab active:cursor-grabbing">
       <Canvas camera={{ position: [25, 20, 25], fov: 45 }}>
-        <color attach="background" args={['#070710']} />
+        <EnvironmentLighting />
         
-        <ambientLight intensity={1.5} />
-        <directionalLight position={[15, 30, 15]} intensity={2.5} color="#ffffff" />
-        <pointLight position={[-10, 5, -10]} intensity={1.5} color="#00aaff" />
-        <hemisphereLight skyColor="#ffffff" groundColor="#0044ff" intensity={0.5} />
         <Environment preset="city" />
         
         <CityContext />
         <Building />
+        <RoofChiller />
         <CameraRig controlsRef={controlsRef} />
         <PresentationDirector />
         

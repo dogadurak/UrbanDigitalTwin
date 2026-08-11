@@ -12,6 +12,7 @@ class SimulationEngine {
     };
     this.currentMultiplier = 'realtime';
     this.aiInsights = [];
+    this.timeOfDay = 12.0; // Start at 12:00 PM
   }
 
   start(broadcastCallback) {
@@ -110,9 +111,17 @@ class SimulationEngine {
   }
 
   tick() {
+    this.tickTime();
     this.tickElevators();
     this.tickSensors();
     this.tickCalculatedMetrics();
+  }
+
+  tickTime() {
+    // 1 tick = 1 second real time = 0.02 hours virtual time (1 day = 1200 seconds = 20 mins)
+    this.timeOfDay += 0.02;
+    if (this.timeOfDay >= 24) this.timeOfDay -= 24;
+    this.building.timeOfDay = this.timeOfDay;
   }
 
   tickElevators() {

@@ -7,6 +7,7 @@ import ControlPanel from './panels/ControlPanel';
 import SimulationPanel from './panels/SimulationPanel';
 import FloorDetailModal from './FloorDetailModal';
 import CCTVModal from './panels/CCTVModal';
+import TimelineControl from './ui/TimelineControl';
 import useTwinStore from '../store/useTwinStore';
 
 const Dashboard = () => {
@@ -70,6 +71,10 @@ const Dashboard = () => {
         isOpen={isCctvOpen}
         onClose={() => setIsCctvOpen(false)}
       />
+      
+      <div className="pointer-events-auto">
+        <TimelineControl />
+      </div>
 
     </div>
   );
