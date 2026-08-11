@@ -478,12 +478,16 @@ const PresentationDirector = () => {
   const setViewMode = useTwinStore(state => state.setViewMode);
   const triggerScenario = useTwinStore(state => state.triggerScenario);
 
+  // Store a stable reference to building.floors so we don't trigger the effect on every tick
+  const floorsRef = useRef(building?.floors || []);
+  useEffect(() => {
+    if (building?.floors?.length > 0) {
+      floorsRef.current = building.floors;
+    }
+  }, [building]);
+
   useEffect(() => {
     if (!presentationMode) {
-      // Cleanup if exited
-      setSelectedFloorId(null);
-      setViewMode('NORMAL');
-      triggerScenario(null);
       return;
     }
 
@@ -498,7 +502,9 @@ const PresentationDirector = () => {
           triggerScenario(null);
           break;
         case 1:
-          setSelectedFloorId(building.floors[0].id); // Floor 1
+          if (floorsRef.current.length > 0) {
+            setSelectedFloorId(floorsRef.current[0].id); // Floor 1
+          }
           break;
         case 2:
           setViewMode('ENERGY');
@@ -518,8 +524,14 @@ const PresentationDirector = () => {
       }
     }, 6000); // Change every 6 seconds
 
-    return () => clearInterval(interval);
-  }, [presentationMode, building.floors, setSelectedFloorId, setViewMode, triggerScenario]);
+    return () => {
+      clearInterval(interval);
+      // Cleanup when exiting presentation mode
+      setSelectedFloorId(null);
+      setViewMode('NORMAL');
+      triggerScenario(null);
+    };
+  }, [presentationMode, setSelectedFloorId, setViewMode, triggerScenario]);
 
   return null;
 }
