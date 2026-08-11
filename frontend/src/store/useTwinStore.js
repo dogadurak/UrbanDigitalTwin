@@ -47,18 +47,27 @@ const useTwinStore = create((set, get) => ({
         console.log('Connected to Digital Twin Backend');
       });
 
-      socket.on('telemetry', (buildingData) => {
+      socket.on('telemetry', (payload) => {
+        // The payload might be just the building (initial) or { building, aiInsights, activeScenario } (from engine tick)
+        const buildingData = payload.building || payload;
+
         // Hydrate state from backend and keep history
         set((state) => {
           const newHistory = [...state.historyBuffer, buildingData].slice(-300); // 5 minutes history
           
           if (state.isHistoricalMode) {
-            return { historyBuffer: newHistory }; // Don't update current building state
+            return { 
+              historyBuffer: newHistory,
+              aiInsights: payload.aiInsights || state.aiInsights,
+              activeScenario: payload.activeScenario !== undefined ? payload.activeScenario : state.activeScenario
+            }; // Don't update current building state
           }
           
           return {
             building: buildingData,
-            historyBuffer: newHistory
+            historyBuffer: newHistory,
+            aiInsights: payload.aiInsights || state.aiInsights,
+            activeScenario: payload.activeScenario !== undefined ? payload.activeScenario : state.activeScenario
           };
         });
       });
