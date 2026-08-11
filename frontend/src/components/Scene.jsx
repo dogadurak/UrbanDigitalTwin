@@ -4,6 +4,7 @@ import { OrbitControls, Grid, Html, Environment, ContactShadows } from '@react-t
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import useTwinStore from '../store/useTwinStore';
+import Drone from './Drone';
 
 const Floor = ({ position, floorData, selected, isIsolated, onClick }) => {
   const meshRef = useRef();
@@ -670,6 +671,7 @@ const Scene = () => {
         <CityContext />
         <Building />
         <RoofChiller />
+        <Drone />
         <CameraRig controlsRef={controlsRef} />
         <PresentationDirector />
         
