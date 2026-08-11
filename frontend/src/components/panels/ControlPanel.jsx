@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, Zap, Wind, Lock, Flame, Activity } from 'lucide-react';
 import useTwinStore from '../../store/useTwinStore';
 
