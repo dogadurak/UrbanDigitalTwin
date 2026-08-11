@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Eye } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import useTwinStore from '../../store/useTwinStore';
+import AlertCard from '../ui/AlertCard';
 
 const AIInsightsPanel = () => {
   const aiInsights = useTwinStore(state => state.aiInsights);
@@ -27,27 +28,12 @@ const AIInsightsPanel = () => {
       {/* AI Insights */}
       <AnimatePresence>
         {aiInsights.map((insight, idx) => (
-          <motion.div 
+          <AlertCard 
             key={idx}
-            initial={{ x: 100, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 100, opacity: 0 }}
-            className={`p-3 rounded-xl border backdrop-blur-md shadow-lg text-sm ${
-              insight.type === 'danger' ? 'bg-red-900/40 border-red-500/50 text-red-200' :
-              insight.type === 'warning' ? 'bg-yellow-900/40 border-yellow-500/50 text-yellow-200' :
-              'bg-green-900/40 border-green-500/50 text-green-200'
-            }`}
-          >
-            <div className="flex gap-3 items-start">
-              <div className="mt-0.5">
-                <Activity size={16} />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold uppercase opacity-70 mb-1">AI INSIGHT</h4>
-                <p>{insight.text}</p>
-              </div>
-            </div>
-          </motion.div>
+            title="AI INSIGHT"
+            description={insight.text}
+            type={insight.type === 'danger' ? 'danger' : insight.type === 'warning' ? 'warning' : 'info'}
+          />
         ))}
       </AnimatePresence>
     </div>

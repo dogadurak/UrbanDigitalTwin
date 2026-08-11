@@ -2,7 +2,9 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Thermometer, Wind, Droplets, Server, HeartPulse, ExternalLink } from 'lucide-react';
 import useTwinStore from '../../store/useTwinStore';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import SensorCard from '../ui/SensorCard';
+import TimeSeriesChart from '../ui/TimeSeriesChart';
+import ProgressBar from '../ui/ProgressBar';
 
 const InspectorPanel = ({ onOpenModal }) => {
   const building = useTwinStore(state => state.building);
@@ -52,66 +54,51 @@ const InspectorPanel = ({ onOpenModal }) => {
             </div>
             
             <div className="grid grid-cols-2 gap-6 mb-6">
-              <div>
-                <div className="flex items-center gap-2 text-gray-400 mb-1">
-                  <Thermometer size={16} />
-                  <span className="text-xs uppercase">Temperature</span>
-                </div>
-                <div className="text-2xl font-mono text-white">{zoneData.sensors.temperature.currentValue.toFixed(1)}<span className="text-sm text-gray-500">{zoneData.sensors.temperature.unit}</span></div>
-              </div>
-              
-              <div>
-                <div className="flex items-center gap-2 text-gray-400 mb-1">
-                  <Wind size={16} />
-                  <span className="text-xs uppercase">Air Quality</span>
-                </div>
-                <div className="text-2xl font-mono text-green-400">{Math.round(zoneData.sensors.airQuality.currentValue)}<span className="text-sm text-gray-500">{zoneData.sensors.airQuality.unit}</span></div>
-              </div>
-              
-              <div>
-                <div className="flex items-center gap-2 text-gray-400 mb-1">
-                  <Droplets size={16} />
-                  <span className="text-xs uppercase">Humidity</span>
-                </div>
-                <div className="text-2xl font-mono text-white">{Math.round(zoneData.sensors.humidity.currentValue)}<span className="text-sm text-gray-500">{zoneData.sensors.humidity.unit}</span></div>
-              </div>
-              
-              <div>
-                <div className="flex items-center gap-2 text-gray-400 mb-1">
-                  <Server size={16} />
-                  <span className="text-xs uppercase">IT Load</span>
-                </div>
-                <div className="text-2xl font-mono text-white">{Math.round(zoneData.sensors.itLoad.currentValue)}<span className="text-sm text-gray-500">{zoneData.sensors.itLoad.unit}</span></div>
-              </div>
+              <SensorCard 
+                icon={Thermometer} 
+                label="Temperature" 
+                value={zoneData.sensors.temperature.currentValue.toFixed(1)} 
+                unit={zoneData.sensors.temperature.unit} 
+              />
+              <SensorCard 
+                icon={Wind} 
+                label="Air Quality" 
+                value={Math.round(zoneData.sensors.airQuality.currentValue)} 
+                unit={zoneData.sensors.airQuality.unit}
+                valueColor="text-green-400"
+              />
+              <SensorCard 
+                icon={Droplets} 
+                label="Humidity" 
+                value={Math.round(zoneData.sensors.humidity.currentValue)} 
+                unit={zoneData.sensors.humidity.unit} 
+              />
+              <SensorCard 
+                icon={Server} 
+                label="IT Load" 
+                value={Math.round(zoneData.sensors.itLoad.currentValue)} 
+                unit={zoneData.sensors.itLoad.unit} 
+              />
             </div>
 
             {/* Historical Data Chart */}
-            <div className="h-40 w-full mt-4 border-t border-white/10 pt-4">
+            <div className="mt-4 border-t border-white/10 pt-4">
               <h3 className="text-xs text-gray-400 uppercase tracking-widest mb-2">Trend Analysis (Last 1h)</h3>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                  <XAxis dataKey="time" stroke="#ffffff50" fontSize={10} tickMargin={5} minTickGap={20} />
-                  <YAxis yAxisId="left" stroke="#ffffff50" fontSize={10} width={30} domain={['dataMin - 5', 'dataMax + 5']} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(0,0,0,0.8)', borderColor: 'rgba(0,255,255,0.3)', borderRadius: '8px' }}
-                    itemStyle={{ color: '#fff', fontSize: '12px' }}
-                    labelStyle={{ color: '#00ffff', fontSize: '12px' }}
-                  />
-                  <Line yAxisId="left" type="monotone" dataKey="temperature" name="Temp (°C)" stroke="#00ffff" strokeWidth={2} dot={false} isAnimationActive={false} />
-                  <Line yAxisId="left" type="monotone" dataKey="itLoad" name="IT Load (kW)" stroke="#ffaa00" strokeWidth={2} dot={false} isAnimationActive={false} />
-                </LineChart>
-              </ResponsiveContainer>
+              <TimeSeriesChart 
+                data={chartData}
+                lines={[
+                  { dataKey: "temperature", name: "Temp (°C)", color: "#00ffff" },
+                  { dataKey: "itLoad", name: "IT Load (kW)", color: "#ffaa00" }
+                ]}
+              />
             </div>
             
             <div className="mt-4 pt-4 border-t border-white/10">
-              <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
-                <span>Occupancy</span>
-                <span className="text-cyan-300">{zoneData.sensors.occupancy.currentValue} / {zoneData.sensors.occupancy.max}</span>
-              </div>
-              <div className="w-full bg-gray-800 rounded-full h-1">
-                <div className="bg-cyan-400 h-1 rounded-full" style={{ width: `${(zoneData.sensors.occupancy.currentValue / zoneData.sensors.occupancy.max) * 100}%` }}></div>
-              </div>
+              <ProgressBar 
+                label="Occupancy"
+                currentValue={zoneData.sensors.occupancy.currentValue}
+                maxValue={zoneData.sensors.occupancy.max}
+              />
             </div>
             
             <button 
