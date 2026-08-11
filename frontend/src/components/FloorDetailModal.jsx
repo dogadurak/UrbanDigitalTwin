@@ -17,11 +17,26 @@ const FloorDetailModal = ({ isOpen, onClose }) => {
   
   // Mock data for detailed charts
   const powerDistribution = [
-    { name: 'IT Servers', value: zone.sensors.itLoad.value },
-    { name: 'HVAC', value: zone.sensors.itLoad.value * 0.4 },
+    { name: 'IT Servers', value: zone.sensors.itLoad.currentValue },
+    { name: 'HVAC', value: zone.sensors.itLoad.currentValue * 0.4 },
     { name: 'Lighting', value: 15 },
     { name: 'Misc', value: 5 }
   ];
+
+  let chartData = [];
+  if (zone && zone.sensors.temperature.history1h) {
+    const tempHist = zone.sensors.temperature.history1h;
+    const humHist = zone.sensors.humidity.history1h;
+    const itHist = zone.sensors.itLoad.history1h;
+    const aqiHist = zone.sensors.airQuality.history1h;
+    chartData = tempHist.map((tPoint, idx) => ({
+      time: new Date(tPoint.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      temperature: tPoint.value,
+      humidity: humHist[idx] ? humHist[idx].value : 0,
+      itLoad: itHist[idx] ? itHist[idx].value : 0,
+      airQuality: aqiHist[idx] ? aqiHist[idx].value : 0,
+    }));
+  }
 
   return (
     <AnimatePresence>
@@ -129,7 +144,7 @@ const FloorDetailModal = ({ isOpen, onClose }) => {
                 </h3>
                 <div className="flex-1 w-full mt-2">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={zone.history}>
+                    <AreaChart data={chartData}>
                       <defs>
                         <linearGradient id="colorTemp" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#ff4444" stopOpacity={0.3}/>
@@ -161,7 +176,7 @@ const FloorDetailModal = ({ isOpen, onClose }) => {
                 </h3>
                 <div className="flex-1 w-full mt-2">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={zone.history}>
+                    <BarChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
                       <XAxis dataKey="time" stroke="#ffffff50" fontSize={10} />
                       <YAxis stroke="#ffffff50" fontSize={10} />

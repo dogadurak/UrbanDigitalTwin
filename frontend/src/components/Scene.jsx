@@ -19,9 +19,9 @@ const Floor = ({ position, floorData, selected, isIsolated, onClick }) => {
   const alertMatRefs = useRef([]);
   
   // Basic calculations for view modes
-  const itLoad = floorData.zones[0]?.sensors?.itLoad?.value || 0;
+  const itLoad = floorData.zones[0]?.sensors?.itLoad?.currentValue || 0;
   const energyColor = itLoad > 60 ? "#ff2200" : (itLoad > 30 ? "#ffaa00" : "#00ff00");
-  const hvacEff = floorData.zones[0]?.assets?.hvac?.efficiency || 0;
+  const hvacEff = floorData.zones[0]?.assets?.hvac?.health || 0;
   
   const isSecurityMode = viewMode === 'SECURITY';
   const isFireMode = viewMode === 'FIRE';
@@ -432,6 +432,55 @@ const PresentationDirector = () => {
   return null;
 }
 
+const CityContext = () => {
+  // Generate random building blocks for the urban environment
+  const buildings = React.useMemo(() => {
+    const blocks = [];
+    for (let i = 0; i < 40; i++) {
+      const x = (Math.random() - 0.5) * 150;
+      const z = (Math.random() - 0.5) * 150;
+      // Don't spawn buildings too close to the center
+      if (Math.abs(x) < 20 && Math.abs(z) < 20) continue;
+      
+      const height = Math.random() * 15 + 5;
+      const width = Math.random() * 6 + 4;
+      const depth = Math.random() * 6 + 4;
+      blocks.push({ x, z, width, height, depth });
+    }
+    return blocks;
+  }, []);
+
+  return (
+    <group>
+      {/* Roads */}
+      <mesh position={[0, -0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[200, 200]} />
+        <meshStandardMaterial color="#050510" roughness={0.9} />
+      </mesh>
+      
+      {/* Central Plaza Base */}
+      <mesh position={[0, 0, 0]}>
+        <boxGeometry args={[30, 0.2, 30]} />
+        <meshStandardMaterial color="#1a1a2e" roughness={0.8} />
+      </mesh>
+
+      {/* Neighboring Buildings */}
+      {buildings.map((b, i) => (
+        <mesh key={i} position={[b.x, b.height / 2, b.z]}>
+          <boxGeometry args={[b.width, b.height, b.depth]} />
+          <meshStandardMaterial 
+            color="#0f172a" 
+            metalness={0.8} 
+            roughness={0.2}
+            emissive="#020617"
+            emissiveIntensity={0.5}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+};
+
 const Scene = () => {
   const controlsRef = useRef();
 
@@ -446,6 +495,7 @@ const Scene = () => {
         <hemisphereLight skyColor="#ffffff" groundColor="#0044ff" intensity={0.5} />
         <Environment preset="city" />
         
+        <CityContext />
         <Building />
         <CameraRig controlsRef={controlsRef} />
         <PresentationDirector />

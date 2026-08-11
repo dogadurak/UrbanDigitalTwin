@@ -1,12 +1,12 @@
 import { create } from 'zustand';
-import { generateBuildingModel } from '../models/assetHierarchy';
 
 const useTwinStore = create((set, get) => ({
-  building: generateBuildingModel(),
+  building: null,
   selectedFloorId: null,
   viewMode: 'NORMAL', // 'NORMAL', 'ENERGY', 'HVAC', 'SECURITY', 'FIRE'
   activeScenario: null,
   aiInsights: [],
+  whatIfResult: null,
   presentationMode: false,
 
   setSelectedFloorId: (floorId) => set({ selectedFloorId: floorId }),
@@ -28,13 +28,15 @@ const useTwinStore = create((set, get) => ({
         console.log('Connected to Digital Twin Backend');
       });
 
-      socket.on('building_update', (data) => {
+      socket.on('telemetry', (buildingData) => {
         // Hydrate state from backend
         set({
-          building: data.building,
-          aiInsights: data.aiInsights,
-          activeScenario: data.activeScenario
+          building: buildingData
         });
+      });
+
+      socket.on('what_if_result', (result) => {
+        set({ whatIfResult: result });
       });
 
       socket.on('disconnect', () => {
@@ -46,7 +48,15 @@ const useTwinStore = create((set, get) => ({
   triggerScenario: (scenario) => {
     const socket = get().socket;
     if (socket) {
-      socket.emit('trigger_scenario', scenario);
+      socket.emit('setScenario', scenario);
+    }
+    set({ activeScenario: scenario });
+  },
+  
+  simulateWhatIf: (params) => {
+    const socket = get().socket;
+    if (socket) {
+      socket.emit('simulate_what_if', params);
     }
   },
   
