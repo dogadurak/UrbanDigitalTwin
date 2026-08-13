@@ -6,8 +6,10 @@ const useTwinStore = create((set, get) => ({
   viewMode: 'NORMAL', // 'NORMAL', 'ENERGY', 'HVAC', 'SECURITY', 'FIRE'
   activeScenario: null,
   aiInsights: [],
+  weather: null,
   whatIfResult: null,
   presentationMode: false,
+  sabotageMode: false,
   
   historyBuffer: [],
   isHistoricalMode: false,
@@ -15,6 +17,8 @@ const useTwinStore = create((set, get) => ({
 
   setSelectedFloorId: (floorId) => set({ selectedFloorId: floorId }),
   setViewMode: (mode) => set({ viewMode: mode }),
+  setPresentationMode: (mode) => set({ presentationMode: mode }),
+  setSabotageMode: (mode) => set({ sabotageMode: mode }),
   triggerScenario: (scenario) => set({ activeScenario: scenario }),
   togglePresentationMode: () => set(state => ({ presentationMode: !state.presentationMode })),
   
@@ -48,7 +52,7 @@ const useTwinStore = create((set, get) => ({
       });
 
       socket.on('telemetry', (payload) => {
-        // The payload might be just the building (initial) or { building, aiInsights, activeScenario } (from engine tick)
+        // The payload might be just the building (initial) or { building, aiInsights, activeScenario, weather } (from engine tick)
         const buildingData = payload.building || payload;
 
         // Hydrate state from backend and keep history
@@ -59,7 +63,8 @@ const useTwinStore = create((set, get) => ({
             return { 
               historyBuffer: newHistory,
               aiInsights: payload.aiInsights || state.aiInsights,
-              activeScenario: payload.activeScenario !== undefined ? payload.activeScenario : state.activeScenario
+              activeScenario: payload.activeScenario !== undefined ? payload.activeScenario : state.activeScenario,
+              weather: payload.weather !== undefined ? payload.weather : state.weather
             }; // Don't update current building state
           }
           
@@ -88,6 +93,13 @@ const useTwinStore = create((set, get) => ({
       socket.emit('setScenario', scenario);
     }
     set({ activeScenario: scenario });
+  },
+
+  triggerSabotageAction: (type, floorId) => {
+    const socket = get().socket;
+    if (socket) {
+      socket.emit('sabotage', { type, floorId });
+    }
   },
   
   simulateWhatIf: (params) => {

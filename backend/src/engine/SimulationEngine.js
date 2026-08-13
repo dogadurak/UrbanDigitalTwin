@@ -13,19 +13,51 @@ class SimulationEngine {
     this.currentMultiplier = 'realtime';
     this.aiInsights = [];
     this.timeOfDay = 12.0; // Start at 12:00 PM
+    
+    // Weather State
+    this.weather = {
+      temperature: 22.0,
+      humidity: 45.0,
+      isRaining: false,
+      windSpeed: 10,
+      condition: 'CLEAR'
+    };
+    this.lastWeatherFetch = 0;
   }
 
   start(broadcastCallback) {
+    this.fetchWeather();
+    
     this.interval = setInterval(() => {
       this.tick();
       if (broadcastCallback) {
         broadcastCallback({
           building: this.building,
           aiInsights: this.aiInsights,
-          activeScenario: this.activeScenario
+          activeScenario: this.activeScenario,
+          weather: this.weather
         });
       }
     }, this.tickRateMs);
+  }
+
+  async fetchWeather() {
+    try {
+      // Fetch weather for Istanbul
+      const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=41.0082&longitude=28.9784&current=temperature_2m,relative_humidity_2m,rain,wind_speed_10m');
+      const data = await res.json();
+      
+      this.weather.temperature = data.current.temperature_2m;
+      this.weather.humidity = data.current.relative_humidity_2m;
+      this.weather.isRaining = data.current.rain > 0;
+      this.weather.windSpeed = data.current.wind_speed_10m;
+      this.weather.condition = this.weather.isRaining ? 'RAIN' : 'CLEAR';
+      
+      console.log(`[WEATHER] Updated: ${this.weather.temperature}°C, Rain: ${this.weather.isRaining}`);
+      this.lastWeatherFetch = Date.now();
+    } catch (e) {
+      console.error("[WEATHER] Failed to fetch weather:", e.message);
+    }
   }
 
   stop() {
@@ -85,19 +117,58 @@ class SimulationEngine {
       }
 
       if (scenario === 'SECURITY_BREACH') {
-        this.building.status = 'EMERGENCY';
-        const f15 = this.building.floors.find(f => f.level === 15);
-        if (f15) {
-          const zone = f15.zones[0];
-          zone.alerts.push({
-            id: crypto.randomUUID(),
-            severity: 'CRITICAL',
-            timestamp: new Date().toLocaleTimeString(),
-            message: 'UNAUTHORIZED ACCESS - F15 EXECUTIVE OFFICE'
-          });
-        }
-        this.building.activeAlerts = this.calculateTotalAlerts();
+      this.building.status = 'EMERGENCY';
+      const f15 = this.building.floors.find(f => f.level === 15);
+      if (f15) {
+        const zone = f15.zones[0];
+        zone.alerts.push({
+          id: crypto.randomUUID(),
+          severity: 'CRITICAL',
+          timestamp: new Date().toLocaleTimeString(),
+          message: 'UNAUTHORIZED ACCESS - F15 EXECUTIVE OFFICE'
+        });
       }
+      this.building.activeAlerts = this.calculateTotalAlerts();
+    }
+  }
+
+  triggerSabotage(type, floorId) {
+    const floor = this.building.floors.find(f => f.id === floorId);
+    if (!floor) return;
+    const zone = floor.zones[0];
+    
+    this.building.status = 'EMERGENCY';
+    
+    if (type === 'FIRE') {
+      zone.sensors.fireSafety.isAlarmActive = true;
+      zone.sensors.temperature.currentValue = 90.0;
+      zone.alerts.push({
+        id: crypto.randomUUID(),
+        severity: 'CRITICAL',
+        timestamp: new Date().toLocaleTimeString(),
+        message: 'SABOTAGE DETECTED: FIRE INSTIGATED MANUALLY!'
+      });
+    } else if (type === 'HVAC_LEAK') {
+      zone.assets.hvac.status = 'OFFLINE';
+      zone.assets.hvac.health = 0;
+      zone.alerts.push({
+        id: crypto.randomUUID(),
+        severity: 'WARNING',
+        timestamp: new Date().toLocaleTimeString(),
+        message: 'SABOTAGE DETECTED: HVAC PIPES RUPTURED!'
+      });
+    } else if (type === 'WINDOW_BREAK') {
+      zone.sensors.temperature.currentValue = this.weather.temperature;
+      zone.alerts.push({
+        id: crypto.randomUUID(),
+        severity: 'WARNING',
+        timestamp: new Date().toLocaleTimeString(),
+        message: 'SABOTAGE DETECTED: STRUCTURAL COMPROMISE (WINDOW BROKEN)'
+      });
+    }
+    
+    this.building.activeAlerts = this.calculateTotalAlerts();
+    this.aiInsights.push({ type: 'danger', text: `SABOTAGE RECORDED ON ${floor.name}` });
   }
 
   calculateTotalAlerts() {
@@ -111,26 +182,40 @@ class SimulationEngine {
   }
 
   tick() {
-    this.tickTime();
+    // 1. Time progression
+    const timeDeltaHours = (this.tickRateMs / 3600000) * this.timeMultipliers[this.currentMultiplier];
+    this.timeOfDay += timeDeltaHours;
+    if (this.timeOfDay >= 24) this.timeOfDay = 0;
+    this.building.timeOfDay = this.timeOfDay;
+
+    // Fetch weather every 15 minutes real-time
+    if (Date.now() - this.lastWeatherFetch > 15 * 60 * 1000) {
+      this.fetchWeather();
+    }
+
     this.tickElevators();
     this.tickSensors();
     this.tickCalculatedMetrics();
   }
 
-  tickTime() {
-    // 1 tick = 1 second real time = 0.02 hours virtual time (1 day = 1200 seconds = 20 mins)
-    this.timeOfDay += 0.02;
-    if (this.timeOfDay >= 24) this.timeOfDay -= 24;
-    this.building.timeOfDay = this.timeOfDay;
-  }
-
   tickElevators() {
     if (this.building.status === 'EMERGENCY') {
-      this.building.elevators.forEach(elv => elv.status = 'IDLE');
+      this.building.elevators.forEach(elv => {
+        elv.targetFloor = 0;
+        if (elv.currentFloor > 0) {
+          elv.status = 'MOVING_DOWN';
+          elv.currentFloor = Math.max(0, elv.currentFloor - 0.5);
+        } else {
+          elv.currentFloor = 0;
+          elv.status = 'LOCKED';
+        }
+      });
       return;
     }
 
     this.building.elevators.forEach(elv => {
+      if (elv.status === 'LOCKED') elv.status = 'IDLE';
+
       // Very simple elevator logic
       if (elv.status === 'IDLE' && Math.random() > 0.95) {
         elv.targetFloor = Math.floor(Math.random() * 15);
@@ -157,29 +242,111 @@ class SimulationEngine {
   }
 
   tickSensors() {
-    // Generate organic noise for sensors
-    const now = new Date().toISOString();
-    
-    this.building.floors.forEach(f => {
+    const isWorkingHours = this.timeOfDay >= 8 && this.timeOfDay <= 18;
+    const baseOccupancy = isWorkingHours ? (Math.sin(((this.timeOfDay - 8) / 10) * Math.PI) * 45) : 0;
+
+    // First pass: Calculate occupancy and heat generation
+    this.building.floors.forEach((f, index) => {
       f.zones.forEach(z => {
-        // Normal Temp fluctuation unless fire
+        // Occupancy calculation
+        let occ = baseOccupancy + (Math.random() - 0.5) * 5;
+        if (this.building.status === 'EMERGENCY' || occ < 0) occ = 0;
+        z.sensors.occupancy.currentValue = Math.floor(occ);
+
+        // Base IT Load based on occupancy + baseline servers
+        const serverLoad = f.level === 3 ? 150 : 20; // Floor 3 is server room
+        z.sensors.itLoad.currentValue = serverLoad + (z.sensors.occupancy.currentValue * 0.5);
+
+        // Heat generation
+        const humanHeat = z.sensors.occupancy.currentValue * 0.05; // kW
+        const itHeat = z.sensors.itLoad.currentValue * 0.02; // kW
+        let heatGenerated = humanHeat + itHeat;
+
+        // Sabotage overrides
         if (this.activeScenario === 'FIRE_EMERGENCY' && f.level === 5) {
-          z.sensors.temperature.currentValue = Math.min(100, z.sensors.temperature.currentValue + 1.0);
-        } else if (this.activeScenario === 'HVAC_FAILURE' && f.level === 10) {
-          z.sensors.temperature.currentValue = Math.min(30, z.sensors.temperature.currentValue + 0.1);
-        } else {
-          z.sensors.temperature.currentValue += (Math.random() - 0.5) * 0.2;
-          // bounds clamp 18 - 26
-          z.sensors.temperature.currentValue = Math.max(18, Math.min(26, z.sensors.temperature.currentValue));
+          heatGenerated += 50.0;
+        } else if (z.sensors.fireSafety.isAlarmActive) {
+          heatGenerated += 30.0; 
         }
 
-        z.sensors.humidity.currentValue += (Math.random() - 0.5) * 1.0;
-        z.sensors.itLoad.currentValue += (Math.random() - 0.5) * 0.5;
-        z.sensors.airQuality.currentValue += (Math.random() - 0.5) * 1.5;
+        z.heatGenerated = heatGenerated;
+      });
+    });
 
-        // Optionally, push to history (simplified here, in reality we'd throttle this to 1 per min)
-        // We'll skip pushing to history arrays every tick to save memory/bandwidth for 1Hz broadcast.
-        // History arrays are static generated initially, they'll be dynamic later if we implement a DB.
+    // Second pass: Heat Transfer & HVAC (Thermodynamics & PID)
+    this.building.floors.forEach((f, index) => {
+      f.zones.forEach(z => {
+        const hvac = z.assets.hvac;
+        let currentTemp = z.sensors.temperature.currentValue;
+
+        // 1. Natural Heat Transfer (Weather)
+        const outsideTemp = this.weather.temperature;
+        const weatherLeak = 0.05; // Insulation factor
+        let tempDelta = (outsideTemp - currentTemp) * weatherLeak;
+
+        // 2. Solar Gain (Sun effect)
+        const solarGain = (this.timeOfDay > 9 && this.timeOfDay < 16 && !this.weather.isRaining) ? 0.3 : 0;
+        tempDelta += solarGain;
+
+        // 3. Internal Heat Generation
+        tempDelta += z.heatGenerated * 0.1;
+
+        // 4. Heat Transfer from below floor (Heat rises)
+        if (index > 0) {
+          const belowFloor = this.building.floors[index - 1];
+          const belowTemp = belowFloor.zones[0].sensors.temperature.currentValue;
+          if (belowTemp > currentTemp) {
+             tempDelta += (belowTemp - currentTemp) * 0.1;
+          }
+        }
+
+        // 5. HVAC PID Controller
+        if (hvac.status === 'ONLINE' && !z.sensors.fireSafety.isAlarmActive) {
+          const error = hvac.targetTemperature - currentTemp;
+          // Proportional control
+          const coolingEffort = Math.max(-1, Math.min(1, error)); 
+          
+          if (Math.abs(error) > 0.5) {
+             // HVAC is working hard
+             hvac.powerDraw = Math.abs(coolingEffort) * 30; // up to 30kW
+             tempDelta += coolingEffort * 1.5; // Cooling/Heating capacity
+             
+             // Wear and Tear calculation
+             hvac.wearAndTear += (hvac.powerDraw / 30) * 0.02; 
+          } else {
+             hvac.powerDraw = 5; // Base fan power
+             hvac.wearAndTear += 0.001;
+          }
+
+          // Predictive Maintenance check
+          if (hvac.wearAndTear > 100) {
+            hvac.status = 'OFFLINE';
+            hvac.health = 10;
+            z.alerts.push({
+              id: crypto.randomUUID(),
+              severity: 'WARNING',
+              timestamp: new Date().toLocaleTimeString(),
+              message: `HVAC CRITICAL FAILURE ON ${f.name} DUE TO EXCESSIVE WEAR`
+            });
+            this.building.activeAlerts++;
+            this.aiInsights.push({ type: 'warning', text: `Predictive Maintenance missed! HVAC on ${f.name} broke down.` });
+          }
+        } else {
+          hvac.powerDraw = 0;
+        }
+
+        z.sensors.temperature.currentValue = Math.max(10, Math.min(150, currentTemp + tempDelta));
+        
+        // Air Quality drops with occupancy if HVAC is offline
+        if (hvac.status === 'OFFLINE' && z.sensors.occupancy.currentValue > 0) {
+           z.sensors.airQuality.currentValue -= 0.5;
+        } else if (hvac.status === 'ONLINE') {
+           z.sensors.airQuality.currentValue = Math.min(100, z.sensors.airQuality.currentValue + 1.0);
+        }
+        
+        // Add minimal noise for realism
+        z.sensors.humidity.currentValue += (Math.random() - 0.5) * 1.0;
+        z.sensors.humidity.currentValue = Math.max(20, Math.min(80, z.sensors.humidity.currentValue));
       });
     });
   }
@@ -190,7 +357,10 @@ class SimulationEngine {
     this.building.floors.forEach(f => {
       f.zones.forEach(z => {
         totalPower += z.sensors.itLoad.currentValue;
-        if (z.assets.hvac.status === 'ONLINE') totalPower += 15; // HVAC Base Load
+        if (z.assets.hvac.status === 'ONLINE') {
+           // Base fan power + PID cooling effort
+           totalPower += z.assets.hvac.powerDraw || 0;
+        }
         
         // Calculate Zone Health
         let h = 100;
@@ -207,6 +377,12 @@ class SimulationEngine {
     });
 
     this.building.powerLoad = totalPower;
+    
+    // PHASE 14: Finance & CO2
+    // Assuming 1 tick is a timeframe, let's represent hourly rate:
+    // Rate: $0.12 per kW, CO2: 0.42 kg per kW
+    this.building.opex = totalPower * 0.12; // $/hour
+    this.building.co2 = totalPower * 0.42; // kg/hour
     
     // HVAC Efficiency metric
     const hvacOnline = this.building.floors.reduce((acc, f) => acc + (f.zones[0].assets.hvac.status === 'ONLINE' ? 1 : 0), 0);

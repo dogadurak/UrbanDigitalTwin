@@ -1,12 +1,14 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, Zap, Wind, Lock, Flame, Activity } from 'lucide-react';
+import { Eye, Zap, Wind, Lock, Flame, Activity, Bomb } from 'lucide-react';
 import useTwinStore from '../../store/useTwinStore';
 
 const ControlPanel = () => {
   const viewMode = useTwinStore(state => state.viewMode);
   const setViewMode = useTwinStore(state => state.setViewMode);
   const activeScenario = useTwinStore(state => state.activeScenario);
+  const sabotageMode = useTwinStore(state => state.sabotageMode);
+  const setSabotageMode = useTwinStore(state => state.setSabotageMode);
   const triggerScenario = useTwinStore(state => state.triggerScenario);
 
   return (
@@ -103,6 +105,29 @@ const ControlPanel = () => {
             {activeScenario === 'FIRE_EMERGENCY' ? '■ STOP FIRE ALARM' : '▶ TRIGGER FIRE ALARM'}
           </button>
         </div>
+      </motion.div>
+
+      {/* Sabotage Mode */}
+      <motion.div 
+        initial={{ x: -100, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ delay: 0.3 }}
+        className="bg-black/60 backdrop-blur-md border border-red-500/20 rounded-xl p-4 text-white"
+      >
+        <h2 className="text-xs text-red-400 uppercase tracking-widest font-bold flex items-center gap-2 mb-3">
+          <Bomb size={14} /> GAMIFICATION
+        </h2>
+        <button
+          className={`w-full flex items-center justify-center gap-2 py-2 px-3 rounded text-sm font-bold transition-colors ${
+            sabotageMode 
+              ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.6)]' 
+              : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+          }`}
+          onClick={() => setSabotageMode(!sabotageMode)}
+        >
+          <Bomb size={18} />
+          {sabotageMode ? 'SABOTAGE MODE ON' : 'ENABLE SABOTAGE'}
+        </button>
       </motion.div>
     </div>
   );

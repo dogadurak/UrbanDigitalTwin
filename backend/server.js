@@ -33,6 +33,23 @@ io.on('connection', (socket) => {
   // Listen for actions (scenarios)
   socket.on('setScenario', (scenario) => {
     engine.setScenario(scenario);
+    io.emit('telemetry', {
+      building: engine.building,
+      aiInsights: engine.aiInsights,
+      activeScenario: engine.activeScenario,
+      weather: engine.weather
+    });
+  });
+  
+  socket.on('sabotage', (data) => {
+    // data: { type: 'FIRE' | 'HVAC_LEAK' | 'WINDOW_BREAK', floorId }
+    engine.triggerSabotage(data.type, data.floorId);
+    io.emit('telemetry', {
+      building: engine.building,
+      aiInsights: engine.aiInsights,
+      activeScenario: engine.activeScenario,
+      weather: engine.weather
+    });
   });
 
   socket.on('simulate_what_if', (params) => {
