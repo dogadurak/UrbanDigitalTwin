@@ -1,0 +1,39 @@
+{
+  "dataset": "BDG2 Pilot Data (Rat_office_Adele)",
+  "train_period": "2016",
+  "test_period": "2017+",
+  "baseline": {
+    "model": "Seasonal Naive (Day/Hour)",
+    "MAE": 254.5672542141361,
+    "RMSE": 318.1380114126029,
+    "MAPE": 8.027749931636764,
+    "R2": -0.8950406129788986
+  },
+  "xgboost_v1": {
+    "model": "XGBoost-V1 (No Lags)",
+    "MAE": 268.8134960660639,
+    "RMSE": 344.5915639166877,
+    "MAPE": 8.491012590411685,
+    "R2": -1.223292893759699
+  },
+  "xgboost_v2": {
+    "model": "XGBoost-V2 (Autoregressive)",
+    "MAE": 28.800651825056043,
+    "RMSE": 39.81065270434224,
+    "MAPE": 3.0470212863735173,
+    "R2": 0.9703253234674277
+  },
+  "improvement_v2_vs_baseline": 225.76660238908008,
+  "improvement_v2_vs_v1": 240.01284424100788,
+  "threshold": {
+    "calculated_on": "Train Set (99th percentile)",
+    "value": 52.73605849609365
+  },
+  "test_alert_stats": {
+    "total_test_samples": 8730,
+    "alerts_triggered": 1137,
+    "test_alert_rate": 0.1302405498281787,
+    "mean_test_residual": 28.800651825056043,
+    "max_test_residual": 466.158046875
+  }
+}

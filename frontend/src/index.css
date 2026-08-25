@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -12,7 +12,7 @@
 
 body {
   margin: 0;
-  background: #000;
+  background: #020205;
   color: #fff;
   overflow: hidden;
 }
@@ -25,11 +25,12 @@ body {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 229, 255, 0.2);
   border-radius: 4px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(0, 229, 255, 0.5);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
 }
 
 /* Scanline animation for CCTV */
@@ -40,10 +41,13 @@ body {
 
 /* Glow text utility */
 .text-glow-cyan {
-  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5), 0 0 30px rgba(0, 255, 255, 0.2);
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.6), 0 0 30px rgba(0, 229, 255, 0.3);
 }
 .text-glow-red {
-  text-shadow: 0 0 10px rgba(255, 0, 0, 0.5), 0 0 30px rgba(255, 0, 0, 0.2);
+  text-shadow: 0 0 10px rgba(255, 0, 60, 0.6), 0 0 30px rgba(255, 0, 60, 0.3);
+}
+.text-glow-magenta {
+  text-shadow: 0 0 10px rgba(255, 0, 255, 0.6), 0 0 30px rgba(255, 0, 255, 0.3);
 }
 
 /* Monospace for data */
@@ -51,7 +55,13 @@ body {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
+/* Glass panel utility class */
+.glass-panel {
+  @apply bg-black/40 backdrop-blur-xl border border-white/10 shadow-glass rounded-xl;
+}
+
 /* Selection color */
 ::selection {
-  background: rgba(0, 229, 255, 0.3);
+  background: rgba(0, 229, 255, 0.4);
+  color: #fff;
 }

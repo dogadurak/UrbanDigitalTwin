@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Scene from './Scene';
+import CesiumViewer from './Map/CesiumViewer';
 import TopStatusBar from './panels/TopStatusBar';
 import AIInsightsPanel from './panels/AIInsightsPanel';
 import InspectorPanel from './panels/InspectorPanel';
@@ -15,7 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { PanelLeftClose, PanelRightClose, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const Dashboard = () => {
-  const { building, selectedFloorId, setSelectedFloorId, initSocket, activeScenario, viewMode } = useTwinStore();
+  const { building, selectedFloorId, setSelectedFloorId, initSocket, activeScenario, viewMode, viewLevel, setViewLevel } = useTwinStore();
   const [isCctvOpen, setIsCctvOpen] = useState(false);
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
@@ -57,9 +58,22 @@ const Dashboard = () => {
     }
   }, [viewMode]);
 
+  // Show toast on new AI Insight Alert
+  const latestAlert = useTwinStore((state) => state.latestAlert);
+  useEffect(() => {
+    if (latestAlert) {
+      showToast({
+        type: 'warning',
+        title: 'AI ANOMALY DETECTED',
+        message: `Target: ${latestAlert.insight.target?.object}. Score: ${latestAlert.insight.anomalyScore?.value?.toFixed(2)}`,
+        duration: 8000,
+      });
+    }
+  }, [latestAlert]);
+
   if (!building) {
     return (
-      <div className="h-screen w-screen bg-[#020206] flex flex-col items-center justify-center text-white font-mono gap-4">
+      <div className="h-screen w-screen bg-cyber-dark flex flex-col items-center justify-center text-white font-mono gap-4">
         <div className="relative">
           <div className="w-16 h-16 border-2 border-cyan-500/30 rounded-full animate-spin border-t-cyan-400" />
           <div className="w-10 h-10 border-2 border-cyan-500/20 rounded-full animate-spin absolute top-3 left-3 border-b-cyan-300" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
@@ -75,7 +89,7 @@ const Dashboard = () => {
     : null;
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-black text-white font-sans selection:bg-purple-500/30">
+    <div className="relative h-screen w-screen overflow-hidden bg-cyber-dark text-white font-sans selection:bg-cyber-purple/30">
       
       {/* Toast Notifications */}
       <ToastContainer />
@@ -85,7 +99,11 @@ const Dashboard = () => {
 
       {/* 3D Scene Background */}
       <div className="absolute inset-0 z-0">
-        <Scene />
+        {viewLevel === 'MACRO' ? (
+          <CesiumViewer onEnterBuilding={(buildingId) => setViewLevel('MICRO')} />
+        ) : (
+          <Scene />
+        )}
       </div>
 
       {/* UI Overlay */}
@@ -118,7 +136,7 @@ const Dashboard = () => {
           {/* Left Toggle Button */}
           <button
             onClick={() => setLeftPanelOpen(!leftPanelOpen)}
-            className="pointer-events-auto self-center p-1.5 bg-black/60 backdrop-blur-sm border border-white/10 rounded-lg hover:bg-white/10 transition-colors text-gray-400 hover:text-white z-20"
+            className="pointer-events-auto self-center p-1.5 glass-panel text-gray-400 hover:text-white z-20 hover:shadow-neon-cyan hover:border-cyber-cyan transition-all"
           >
             {leftPanelOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
           </button>
@@ -129,7 +147,7 @@ const Dashboard = () => {
           {/* Right Toggle Button */}
           <button
             onClick={() => setRightPanelOpen(!rightPanelOpen)}
-            className="pointer-events-auto self-center p-1.5 bg-black/60 backdrop-blur-sm border border-white/10 rounded-lg hover:bg-white/10 transition-colors text-gray-400 hover:text-white z-20"
+            className="pointer-events-auto self-center p-1.5 glass-panel text-gray-400 hover:text-white z-20 hover:shadow-neon-cyan hover:border-cyber-cyan transition-all"
           >
             {rightPanelOpen ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
           </button>

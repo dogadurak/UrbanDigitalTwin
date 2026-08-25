@@ -4,3 +4,8 @@ geopandas
 shapely
 google-generativeai
 httpx
+psycopg2-binary
+osmnx
+pystac-client
+rasterio
+

@@ -53,7 +53,7 @@ const MiniMap = () => {
       initial={{ y: 50, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ delay: 0.3 }}
-      className="bg-black/70 backdrop-blur-lg border border-white/10 rounded-xl overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.5)] h-64 flex flex-col relative"
+      className="glass-panel overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.5)] h-64 flex flex-col relative"
     >
       <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between z-10 bg-black/50 absolute top-0 w-full pointer-events-none">
         <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">

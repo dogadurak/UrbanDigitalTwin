@@ -11,7 +11,7 @@ const ElevatorStatus = () => {
       initial={{ x: -100, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ delay: 0.15 }}
-      className="bg-black/60 backdrop-blur-md border border-white/10 rounded-xl p-4 text-white"
+      className="glass-panel p-4 text-white"
     >
       <h2 className="text-xs text-cyan-400 uppercase tracking-widest font-bold flex items-center gap-2 mb-3">
         <ArrowUp size={14} /> ELEVATOR STATUS

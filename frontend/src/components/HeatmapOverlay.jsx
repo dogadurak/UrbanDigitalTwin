@@ -19,7 +19,7 @@ const HeatmapOverlay = () => {
   return (
     <group>
       {building.floors.map((floor, i) => {
-        const itLoad = floor.zones[0]?.sensors?.itLoad?.currentValue || 0;
+        const itLoad = floor.rooms?.[0]?.sensors?.itLoad?.currentValue || 0;
         // Normalize to 0-1 range (0-80 kW assumed max)
         const normalized = Math.min(1, Math.max(0, itLoad / 80));
         
@@ -36,7 +36,7 @@ const HeatmapOverlay = () => {
       
       {/* Vertical heat bars on sides */}
       {!isIsolated && building.floors.map((floor, i) => {
-        const itLoad = floor.zones[0]?.sensors?.itLoad?.currentValue || 0;
+        const itLoad = floor.rooms?.[0]?.sensors?.itLoad?.currentValue || 0;
         const normalized = Math.min(1, Math.max(0, itLoad / 80));
         
         return (

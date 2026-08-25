@@ -1,0 +1,23 @@
+{
+  "dataset": "BDG2 Pilot Data (Rat_office_Adele)",
+  "training_date": "2026-08-25T21:38:28.898000Z",
+  "features": [
+    "airTemperature",
+    "cloudCoverage",
+    "dewTemperature",
+    "hour",
+    "day_of_week",
+    "month",
+    "is_weekend",
+    "building_sqm",
+    "ndvi"
+  ],
+  "model_version": "2.0.0",
+  "metrics": {
+    "model": "XGBoost-Residual-v2",
+    "MAE": 26.23615774599436,
+    "RMSE": 40.56726188688068,
+    "MAPE": 0.04216145366197422,
+    "residual_threshold_99th": 161.58667185058616
+  }
+}

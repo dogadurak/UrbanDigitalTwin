@@ -9,7 +9,7 @@ const EventTimeline = () => {
   // Gather all active alerts across the building
   const allAlerts = [];
   building.floors.forEach(f => {
-    f.zones.forEach(z => {
+    f.rooms.forEach(z => {
       z.alerts.forEach(a => {
         allAlerts.push({ ...a, location: `${f.name} - ${z.name}` });
       });
@@ -18,7 +18,7 @@ const EventTimeline = () => {
 
   return (
     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[800px] pointer-events-auto z-40">
-      <div className="bg-black/60 backdrop-blur-md border border-white/10 rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.5)] text-white overflow-hidden">
+      <div className="glass-panel shadow-[0_0_20px_rgba(0,0,0,0.5)] text-white overflow-hidden">
         <div className="p-3 border-b border-white/10 bg-black/40 flex items-center justify-between">
           <h2 className="text-xs text-yellow-400 uppercase tracking-widest font-bold flex items-center gap-2">
             <AlertTriangle size={14} /> ACTIVE SYSTEM ALERTS ({allAlerts.length})

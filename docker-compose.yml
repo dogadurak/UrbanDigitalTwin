@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  postgis:
+    image: postgis/postgis:15-3.4
+    container_name: geotwin-postgis
+    environment:
+      POSTGRES_USER: geotwin_user
+      POSTGRES_PASSWORD: geotwin_password
+      POSTGRES_DB: geotwin_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: always
+
+  mongo:
+    image: mongo:4.4
+    container_name: geotwin-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: always
+
+  orion-ld:
+    image: fiware/orion-ld
+    container_name: geotwin-orion-ld
+    depends_on:
+      - mongo
+    ports:
+      - "1026:1026"
+    command: -dbhost mongo
+    restart: always
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: geotwin-mosquitto
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    restart: always
+
+  ai-service:
+    build: ./ai-service
+    container_name: geotwin-ai-service
+    depends_on:
+      - orion-ld
+      - mosquitto
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./ai-service:/app
+    environment:
+      - ORION_LD_URL=http://orion-ld:1026/ngsi-ld/v1
+      - MQTT_BROKER=mosquitto
+      - DB_HOST=postgis
+      - DB_PORT=5432
+      - DB_NAME=geotwin_db
+      - DB_USER=geotwin_user
+      - DB_PASS=geotwin_password
+    restart: always
+
+  backend:
+    build: ./backend
+    container_name: geotwin-backend
+    depends_on:
+      - orion-ld
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend:/usr/src/app
+      - /usr/src/app/node_modules
+    restart: always
+
+  frontend:
+    build: ./frontend
+    container_name: geotwin-frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/usr/src/app
+      - /usr/src/app/node_modules
+    restart: always
+
+volumes:
+  postgis_data:
+  mongo_data:

@@ -3,6 +3,7 @@ import { create } from 'zustand';
 const useTwinStore = create((set, get) => ({
   building: null,
   selectedFloorId: null,
+  viewLevel: 'MACRO', // 'MACRO' | 'MICRO'
   viewMode: 'NORMAL', // 'NORMAL', 'ENERGY', 'HVAC', 'SECURITY', 'FIRE'
   activeScenario: null,
   aiInsights: [],
@@ -16,6 +17,7 @@ const useTwinStore = create((set, get) => ({
   historicalIndex: 0,
 
   setSelectedFloorId: (floorId) => set({ selectedFloorId: floorId }),
+  setViewLevel: (level) => set({ viewLevel: level }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setPresentationMode: (mode) => set({ presentationMode: mode }),
   setSabotageMode: (mode) => set({ sabotageMode: mode }),
@@ -79,6 +81,26 @@ const useTwinStore = create((set, get) => ({
 
       socket.on('what_if_result', (result) => {
         set({ whatIfResult: result });
+      });
+
+      socket.on('fiware_alert', (payload) => {
+        console.log("FIWARE ALERT RECEIVED", payload);
+        // We can show a toast or update state here.
+        // For now, if we receive a context update, we could log it or trigger a micro-update
+        // that alters the UI.
+      });
+
+      socket.on('ai_insight_alert', (payload) => {
+        console.warn("AI INSIGHT ALERT:", payload);
+        set((state) => ({
+          aiInsights: [...state.aiInsights, payload.insight],
+          latestAlert: payload
+        }));
+        
+        // Auto-clear alert after 5 seconds
+        setTimeout(() => {
+          set({ latestAlert: null });
+        }, 5000);
       });
 
       socket.on('disconnect', () => {

@@ -1,0 +1,41 @@
+{
+  "dataset": "BDG2 Pilot Data (Rat_office_Adele)",
+  "train_period": "2016",
+  "test_period": "2017+",
+  "features": [
+    "airTemperature",
+    "cloudCoverage",
+    "dewTemperature",
+    "hour",
+    "day_of_week",
+    "month",
+    "is_weekend",
+    "building_sqm",
+    "ndvi"
+  ],
+  "baseline": {
+    "model": "Seasonal Naive (Day/Hour)",
+    "MAE": 255.78680070773422,
+    "RMSE": 319.47823764246397,
+    "MAPE": 8.045346745391864,
+    "R2": -0.9110407936673921
+  },
+  "xgboost": {
+    "model": "XGBoost-Residual-v2",
+    "MAE": 268.08082471521124,
+    "RMSE": 343.51010179008045,
+    "MAPE": 8.362707738755297,
+    "R2": -1.209359679306064
+  },
+  "threshold": {
+    "calculated_on": "Train Set (99th percentile)",
+    "value": 161.58667185058616
+  },
+  "test_anomaly_stats": {
+    "total_test_samples": 8730,
+    "anomalies_detected": 4829,
+    "false_positive_rate": 0.5531500572737686,
+    "mean_test_residual": 268.08082471521124,
+    "max_test_residual": 760.6028613281251
+  }
+}

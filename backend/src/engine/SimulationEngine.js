@@ -3,7 +3,7 @@ const crypto = require('crypto');
 
 class SimulationEngine {
   constructor() {
-    this.building = generateBuildingModel();
+    this.building = null;
     this.activeScenario = null;
     this.tickRateMs = 1000; // 1 Hz
     this.timeMultipliers = {
@@ -25,7 +25,17 @@ class SimulationEngine {
     this.lastWeatherFetch = 0;
   }
 
-  start(broadcastCallback) {
+  async start(broadcastCallback) {
+    const bimRepo = require('../repositories/bimRepository');
+    try {
+      this.building = await bimRepo.getBuildingHierarchy('urn:ngsi-ld:Building:Izmir-1');
+      console.log("[SIMULATION] BIM Hierarchy loaded.");
+    } catch (e) {
+      console.error("[SIMULATION] Failed to load BIM Hierarchy:", e.message);
+      // Fallback
+      this.building = generateBuildingModel();
+    }
+    
     this.fetchWeather();
     
     this.interval = setInterval(() => {
@@ -43,20 +53,25 @@ class SimulationEngine {
 
   async fetchWeather() {
     try {
-      // Fetch weather for Istanbul
-      const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=41.0082&longitude=28.9784&current=temperature_2m,relative_humidity_2m,rain,wind_speed_10m');
-      const data = await res.json();
+      const weatherRepo = require('../repositories/weatherRepository');
+      const fiwareGateway = require('../gateways/fiwareGateway');
       
-      this.weather.temperature = data.current.temperature_2m;
-      this.weather.humidity = data.current.relative_humidity_2m;
-      this.weather.isRaining = data.current.rain > 0;
-      this.weather.windSpeed = data.current.wind_speed_10m;
+      const dbWeather = await weatherRepo.getLatestWeather();
+      if (!dbWeather) return;
+
+      this.weather.temperature = dbWeather.temperature;
+      this.weather.humidity = dbWeather.humidity;
+      this.weather.windSpeed = dbWeather.wind_speed;
+      this.weather.isRaining = dbWeather.precipitation > 0;
       this.weather.condition = this.weather.isRaining ? 'RAIN' : 'CLEAR';
       
-      console.log(`[WEATHER] Updated: ${this.weather.temperature}°C, Rain: ${this.weather.isRaining}`);
+      console.log(`[WEATHER] Updated from DB: ${this.weather.temperature}°C, Rain: ${this.weather.isRaining}`);
       this.lastWeatherFetch = Date.now();
+
+      // Push to FIWARE Orion-LD context broker
+      await fiwareGateway.updateWeatherContext(dbWeather);
     } catch (e) {
-      console.error("[WEATHER] Failed to fetch weather:", e.message);
+      console.error("[WEATHER] Failed to fetch weather from DB or update FIWARE:", e.message);
     }
   }
 
@@ -247,38 +262,46 @@ class SimulationEngine {
 
     // First pass: Calculate occupancy and heat generation
     this.building.floors.forEach((f, index) => {
-      f.zones.forEach(z => {
+      if (!f.rooms) return;
+      f.rooms.forEach(room => {
+        // Find environment sensor
+        const envSensor = room.devices?.find(d => d.device_type === 'ENVIRONMENTAL_SENSOR');
+        if (!envSensor) return;
+        
+        let currentTemp = envSensor.lastReading?.temperature ? parseFloat(envSensor.lastReading.temperature) : this.weather.temperature;
         // Occupancy calculation
         let occ = baseOccupancy + (Math.random() - 0.5) * 5;
         if (this.building.status === 'EMERGENCY' || occ < 0) occ = 0;
-        z.sensors.occupancy.currentValue = Math.floor(occ);
-
-        // Base IT Load based on occupancy + baseline servers
-        const serverLoad = f.level === 3 ? 150 : 20; // Floor 3 is server room
-        z.sensors.itLoad.currentValue = serverLoad + (z.sensors.occupancy.currentValue * 0.5);
+        
+        let itLoad = f.level_name === 'First Floor' ? 150 : 20;
+        itLoad += (occ * 0.5);
 
         // Heat generation
-        const humanHeat = z.sensors.occupancy.currentValue * 0.05; // kW
-        const itHeat = z.sensors.itLoad.currentValue * 0.02; // kW
+        const humanHeat = occ * 0.05; // kW
+        const itHeat = itLoad * 0.02; // kW
         let heatGenerated = humanHeat + itHeat;
 
         // Sabotage overrides
-        if (this.activeScenario === 'FIRE_EMERGENCY' && f.level === 5) {
+        if (this.activeScenario === 'FIRE_EMERGENCY' && f.level_name === 'First Floor') {
           heatGenerated += 50.0;
-        } else if (z.sensors.fireSafety.isAlarmActive) {
-          heatGenerated += 30.0; 
         }
 
-        z.heatGenerated = heatGenerated;
+        // Store calculated heat on room temporarily
+        room.heatGenerated = heatGenerated;
       });
     });
 
     // Second pass: Heat Transfer & HVAC (Thermodynamics & PID)
     this.building.floors.forEach((f, index) => {
-      f.zones.forEach(z => {
-        const hvac = z.assets.hvac;
-        let currentTemp = z.sensors.temperature.currentValue;
+      if (!f.rooms) return;
+      f.rooms.forEach(room => {
+        const envSensor = room.devices?.find(d => d.device_type === 'ENVIRONMENTAL_SENSOR');
+        if (!envSensor) return;
+        
+        let currentTemp = envSensor.lastReading?.temperature ? parseFloat(envSensor.lastReading.temperature) : this.weather.temperature;
 
+        const hvacStatus = 'ONLINE'; // We assume online for now
+        
         // 1. Natural Heat Transfer (Weather)
         const outsideTemp = this.weather.temperature;
         const weatherLeak = 0.05; // Insulation factor
@@ -289,64 +312,40 @@ class SimulationEngine {
         tempDelta += solarGain;
 
         // 3. Internal Heat Generation
-        tempDelta += z.heatGenerated * 0.1;
+        tempDelta += room.heatGenerated * 0.1;
 
         // 4. Heat Transfer from below floor (Heat rises)
         if (index > 0) {
           const belowFloor = this.building.floors[index - 1];
-          const belowTemp = belowFloor.zones[0].sensors.temperature.currentValue;
-          if (belowTemp > currentTemp) {
-             tempDelta += (belowTemp - currentTemp) * 0.1;
+          if (belowFloor.rooms && belowFloor.rooms[0]) {
+             const belowSensor = belowFloor.rooms[0].devices?.find(d => d.device_type === 'ENVIRONMENTAL_SENSOR');
+             const belowTemp = belowSensor?.lastReading?.temperature ? parseFloat(belowSensor.lastReading.temperature) : currentTemp;
+             if (belowTemp > currentTemp) {
+                tempDelta += (belowTemp - currentTemp) * 0.1;
+             }
           }
         }
 
         // 5. HVAC PID Controller
-        if (hvac.status === 'ONLINE' && !z.sensors.fireSafety.isAlarmActive) {
-          const error = hvac.targetTemperature - currentTemp;
+        if (hvacStatus === 'ONLINE') {
+          const targetTemperature = 22.0;
+          const error = targetTemperature - currentTemp;
           // Proportional control
           const coolingEffort = Math.max(-1, Math.min(1, error)); 
           
           if (Math.abs(error) > 0.5) {
-             // HVAC is working hard
-             hvac.powerDraw = Math.abs(coolingEffort) * 30; // up to 30kW
              tempDelta += coolingEffort * 1.5; // Cooling/Heating capacity
-             
-             // Wear and Tear calculation
-             hvac.wearAndTear += (hvac.powerDraw / 30) * 0.02; 
-          } else {
-             hvac.powerDraw = 5; // Base fan power
-             hvac.wearAndTear += 0.001;
           }
-
-          // Predictive Maintenance check
-          if (hvac.wearAndTear > 100) {
-            hvac.status = 'OFFLINE';
-            hvac.health = 10;
-            z.alerts.push({
-              id: crypto.randomUUID(),
-              severity: 'WARNING',
-              timestamp: new Date().toLocaleTimeString(),
-              message: `HVAC CRITICAL FAILURE ON ${f.name} DUE TO EXCESSIVE WEAR`
-            });
-            this.building.activeAlerts++;
-            this.aiInsights.push({ type: 'warning', text: `Predictive Maintenance missed! HVAC on ${f.name} broke down.` });
-          }
-        } else {
-          hvac.powerDraw = 0;
         }
 
-        z.sensors.temperature.currentValue = Math.max(10, Math.min(150, currentTemp + tempDelta));
+        // Push the updated sensor reading to FIWARE
+        if (!envSensor.lastReading) envSensor.lastReading = {};
+        envSensor.lastReading.temperature = Math.max(10, Math.min(150, currentTemp + tempDelta));
+        envSensor.lastReading.status_flag = hvacStatus === 'OFFLINE' ? 'WARNING' : 'NORMAL';
         
-        // Air Quality drops with occupancy if HVAC is offline
-        if (hvac.status === 'OFFLINE' && z.sensors.occupancy.currentValue > 0) {
-           z.sensors.airQuality.currentValue -= 0.5;
-        } else if (hvac.status === 'ONLINE') {
-           z.sensors.airQuality.currentValue = Math.min(100, z.sensors.airQuality.currentValue + 1.0);
-        }
-        
-        // Add minimal noise for realism
-        z.sensors.humidity.currentValue += (Math.random() - 0.5) * 1.0;
-        z.sensors.humidity.currentValue = Math.max(20, Math.min(80, z.sensors.humidity.currentValue));
+        // Asynchronously update FIWARE (fire-and-forget for simulation tick)
+        const fiwareGateway = require('../gateways/fiwareGateway');
+        fiwareGateway.updateIoTDeviceContext(envSensor.id, room.id, envSensor.device_type, envSensor.lastReading).catch(e => {});
       });
     });
   }
@@ -355,19 +354,21 @@ class SimulationEngine {
     let totalPower = 0;
     
     this.building.floors.forEach(f => {
-      f.zones.forEach(z => {
-        totalPower += z.sensors.itLoad.currentValue;
-        if (z.assets.hvac.status === 'ONLINE') {
-           // Base fan power + PID cooling effort
-           totalPower += z.assets.hvac.powerDraw || 0;
-        }
+      if (!f.rooms) return;
+      f.rooms.forEach(room => {
+        // Base itLoad calculation is simplified for now
+        totalPower += 20; 
         
-        // Calculate Zone Health
+        // Base fan power + PID cooling effort
+        totalPower += 5; // simplified HVAC power draw
+        
+        // Calculate Room Health
         let h = 100;
-        if (z.sensors.temperature.currentValue > 25 || z.sensors.temperature.currentValue < 19) h -= 10;
-        if (z.assets.hvac.status === 'OFFLINE') h -= 40;
-        if (z.sensors.fireSafety.isAlarmActive) h = 0;
-        z.healthScore = h;
+        const envSensor = room.devices?.find(d => d.device_type === 'ENVIRONMENTAL_SENSOR');
+        const currentTemp = envSensor?.lastReading?.temperature ? parseFloat(envSensor.lastReading.temperature) : 22.0;
+        if (currentTemp > 25 || currentTemp < 19) h -= 10;
+        
+        room.healthScore = h;
       });
     });
 
@@ -385,8 +386,7 @@ class SimulationEngine {
     this.building.co2 = totalPower * 0.42; // kg/hour
     
     // HVAC Efficiency metric
-    const hvacOnline = this.building.floors.reduce((acc, f) => acc + (f.zones[0].assets.hvac.status === 'ONLINE' ? 1 : 0), 0);
-    this.building.hvacEfficiency = (hvacOnline / this.building.floors.length) * (90 + Math.random() * 5); // 90-95%
+    this.building.hvacEfficiency = 92 + Math.random() * 3; // 92-95%
 
     // AI Insights Generation
     this.aiInsights = [];
@@ -421,9 +421,9 @@ class SimulationEngine {
     let projectedPower = 0;
     
     this.building.floors.forEach(f => {
-      f.zones.forEach(z => {
-        // Base IT Load scaling with occupancy
-        let baseIt = z.sensors.itLoad.currentValue * occMult;
+      if (!f.rooms) return;
+      f.rooms.forEach(room => {
+        let baseIt = 20 * occMult;
         
         // HVAC load increases if outside temp increases or occupancy increases
         let hvacLoad = 15;
@@ -432,9 +432,7 @@ class SimulationEngine {
         
         hvacLoad *= occMult;
         
-        if (z.assets.hvac.status === 'ONLINE') {
-          projectedPower += hvacLoad;
-        }
+        projectedPower += hvacLoad;
         projectedPower += baseIt;
       });
     });

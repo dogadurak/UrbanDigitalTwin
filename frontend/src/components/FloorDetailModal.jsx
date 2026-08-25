@@ -13,7 +13,7 @@ const FloorDetailModal = ({ isOpen, onClose }) => {
   if (!isOpen || !selectedFloorId) return null;
   
   const floorData = building.floors.find(f => f.id === selectedFloorId);
-  const zone = floorData.zones[0];
+  const zone = floorData.rooms?.[0];
   
   // Mock data for detailed charts
   const powerDistribution = [

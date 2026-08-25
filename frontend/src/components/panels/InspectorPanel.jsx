@@ -11,7 +11,7 @@ const InspectorPanel = () => {
   const selectedFloorId = useTwinStore(state => state.selectedFloorId);
 
   const selectedFloorData = selectedFloorId ? building.floors.find(f => f.id === selectedFloorId) : null;
-  const zoneData = selectedFloorData ? selectedFloorData.zones[0] : null;
+  const zoneData = selectedFloorData ? selectedFloorData.rooms?.[0] : null;
 
   // Combine history for chart
   let chartData = [];
@@ -102,7 +102,7 @@ const InspectorPanel = () => {
           </div>
 
           {/* Trend Chart Card */}
-          <div className="bg-black/60 backdrop-blur-lg border border-white/10 rounded-xl p-4 text-white">
+          <div className="glass-panel p-4 text-white">
             <h3 className="text-[10px] text-gray-400 uppercase tracking-[0.2em] mb-2 font-bold">Trend (1h)</h3>
             <TimeSeriesChart 
               data={chartData}
@@ -114,7 +114,7 @@ const InspectorPanel = () => {
           </div>
           
           {/* Occupancy Bar */}
-          <div className="bg-black/60 backdrop-blur-lg border border-white/10 rounded-xl p-4 text-white">
+          <div className="glass-panel p-4 text-white">
             <ProgressBar 
               label="Floor Occupancy"
               currentValue={zoneData.sensors.occupancy.currentValue}

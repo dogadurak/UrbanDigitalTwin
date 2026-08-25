@@ -34,7 +34,7 @@ const ParticleFlow = () => {
       
       {/* Horizontal flows per floor */}
       {building.floors.map((floor, i) => {
-        const hvacOnline = floor.zones[0]?.assets?.hvac?.status === 'ONLINE';
+        const hvacOnline = floor.rooms?.[0]?.assets?.hvac?.status === 'ONLINE';
         if (!hvacOnline) return null;
         
         return (

@@ -1,0 +1,30 @@
+{
+  "features": [
+    "hour",
+    "day_of_week",
+    "month",
+    "is_weekend",
+    "outdoor_temperature",
+    "dewTemperature",
+    "windSpeed",
+    "lat",
+    "lon",
+    "building_density",
+    "ndvi_current"
+  ],
+  "spatial_features": [
+    "lat",
+    "lon",
+    "building_density",
+    "ndvi_current"
+  ],
+  "base_features": [
+    "hour",
+    "day_of_week",
+    "month",
+    "is_weekend",
+    "outdoor_temperature",
+    "dewTemperature",
+    "windSpeed"
+  ]
+}

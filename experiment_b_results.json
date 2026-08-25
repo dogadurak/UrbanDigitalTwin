@@ -1,0 +1,12 @@
+{
+  "Baseline": {
+    "Precision": 0.28,
+    "Recall": 0.28,
+    "F1": 0.28
+  },
+  "Spatial": {
+    "Precision": 0.28,
+    "Recall": 0.28,
+    "F1": 0.28
+  }
+}

@@ -12,7 +12,7 @@ const AssetTree = () => {
     <motion.div 
       initial={{ x: -100, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
-      className="bg-black/60 backdrop-blur-md border border-white/10 rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.5)] text-white overflow-hidden flex flex-col max-h-[50vh]"
+      className="glass-panel shadow-[0_0_20px_rgba(0,0,0,0.5)] text-white overflow-hidden flex flex-col max-h-[50vh]"
     >
       <div className="p-4 border-b border-white/10 bg-black/40">
         <h2 className="text-xs text-cyan-400 uppercase tracking-widest font-bold flex items-center gap-2">
@@ -45,7 +45,7 @@ const AssetTree = () => {
                     exit={{ height: 0, opacity: 0 }}
                     className="ml-6 flex flex-col gap-1 mt-1 overflow-hidden"
                   >
-                    {floor.zones.map(zone => (
+                    {floor.rooms.map(zone => (
                       <div key={zone.id} className="p-1.5 px-3 text-xs text-gray-400 hover:text-white hover:bg-white/10 rounded cursor-pointer flex items-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full bg-cyan-500"></div>
                         {zone.name}

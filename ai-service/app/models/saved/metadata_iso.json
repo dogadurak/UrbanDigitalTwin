@@ -1,0 +1,32 @@
+{
+  "dataset": "Synthetic benchmark dataset",
+  "training_date": "2026-08-25T18:43:59.710294Z",
+  "features": [
+    "temperature_delta",
+    "humidity_delta",
+    "power_ratio",
+    "rolling_mean",
+    "hour",
+    "day_of_week",
+    "outside_inside_temp_diff",
+    "hvac_runtime",
+    "floor_level",
+    "room_area",
+    "occupancy",
+    "outdoor_temperature",
+    "NDVI",
+    "solar_context",
+    "building_orientation"
+  ],
+  "model_version": "1.0.0",
+  "metrics": {
+    "model": "IsolationForest-v1",
+    "contamination": 0.01,
+    "mean_raw_score": 0.11885009794739038,
+    "empirical_threshold": 2.6590058280206996e-17,
+    "builtin_offset": -0.5959546101939336,
+    "mean_anomaly_score": 0.21628078508709295,
+    "max_anomaly_score": 0.5757735395238254,
+    "anomalies_detected": 22
+  }
+}

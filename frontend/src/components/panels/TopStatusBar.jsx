@@ -86,13 +86,22 @@ const TopStatusBar = () => {
             </h1>
             <div className="text-[9px] text-gray-500 tracking-wider">SMART FACILITY DASHBOARD</div>
           </div>
+          
+          {useTwinStore(state => state.viewLevel) === 'MICRO' && (
+            <button
+              onClick={() => useTwinStore.getState().setViewLevel('MACRO')}
+              className="ml-4 px-3 py-1 bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 text-cyan-400 text-xs rounded transition-colors"
+            >
+              ← Back to City
+            </button>
+          )}
         </div>
         
         <StatusBadge status={building.status} />
       </div>
 
       {/* Center: Metrics */}
-      <div className="flex items-center gap-1 bg-black/50 backdrop-blur-xl border border-white/10 rounded-xl px-3 py-2 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+      <div className="flex items-center gap-1 glass-panel px-3 py-2">
         <MetricItem 
           icon={Zap} 
           iconColor="text-yellow-400" 
@@ -147,7 +156,7 @@ const TopStatusBar = () => {
       {/* Right: Weather + Time */}
       <div className="flex items-center gap-3">
         {weather && (
-          <div className="flex items-center gap-2 bg-black/50 backdrop-blur-xl border border-white/10 rounded-xl px-3 py-2">
+          <div className="flex items-center gap-2 glass-panel px-3 py-2">
             {weather.isRaining ? <CloudRain className="text-blue-400" size={16} /> : <Sun className="text-yellow-400" size={16} />}
             <div className="flex flex-col">
               <span className="text-xs text-gray-300 font-mono">{weather.temperature.toFixed(1)}°C</span>
@@ -156,7 +165,7 @@ const TopStatusBar = () => {
           </div>
         )}
         
-        <div className="flex flex-col items-end bg-black/50 backdrop-blur-xl border border-white/10 rounded-xl px-3 py-2">
+        <div className="flex flex-col items-end glass-panel px-3 py-2">
           <div className="flex items-center gap-1.5">
             <Clock size={12} className="text-blue-400" />
             <span className="text-xs font-mono text-white">{virtualTimeStr}</span>

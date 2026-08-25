@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid, Html, Environment, ContactShadows, MeshReflectorMaterial } from '@react-three/drei';
-import { EffectComposer, Bloom, N8AO, Vignette } from '@react-three/postprocessing';
+import { EffectComposer, Bloom, N8AO, Vignette, ChromaticAberration, HueSaturation } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import useTwinStore from '../store/useTwinStore';
 import Drone from './Drone';
@@ -20,20 +20,20 @@ const Floor = ({ position, floorData, selected, isIsolated, onClick }) => {
   const meshRef = useRef();
   const viewMode = useTwinStore(state => state.viewMode);
   
-  const alerts = floorData.zones[0]?.alerts || [];
+  const alerts = floorData.rooms?.[0]?.alerts || [];
   const hasCritical = alerts.some(a => a.severity === 'CRITICAL');
   const hasWarning = alerts.some(a => a.severity === 'WARNING');
 
   const ghostMatRefs = useRef([]);
   const alertMatRefs = useRef([]);
   
-  const itLoad = floorData.zones[0]?.sensors?.itLoad?.currentValue || 0;
+  const itLoad = floorData.rooms?.[0]?.sensors?.itLoad?.currentValue || 0;
   const energyColor = itLoad > 60 ? "#ff2200" : (itLoad > 30 ? "#ffaa00" : "#00ff00");
-  const hvacEff = floorData.zones[0]?.assets?.hvac?.health || 0;
+  const hvacEff = floorData.rooms?.[0]?.assets?.hvac?.health || 0;
   
   const isSecurityMode = viewMode === 'SECURITY';
   const isFireMode = viewMode === 'FIRE';
-  const isFireAlarm = floorData.zones[0]?.sensors?.fireSafety?.isAlarmActive;
+  const isFireAlarm = floorData.rooms?.[0]?.sensors?.fireSafety?.isAlarmActive;
   const isHVAC = viewMode === 'HVAC';
 
   useFrame((state, delta) => {
@@ -51,9 +51,20 @@ const Floor = ({ position, floorData, selected, isIsolated, onClick }) => {
     let pulseOpacity = 0;
     let pulseColor = null;
     
+    // Check if this floor has an AI anomaly
+    const aiInsights = useTwinStore.getState().aiInsights || [];
+    const hasAIAnomaly = aiInsights.some(insight => {
+      // insight.target.object is like "urn:ngsi-ld:IoTDevice:Env-101"
+      const targetId = insight.target?.object || '';
+      return floorData.rooms?.some(room => room.devices?.some(d => d.id === targetId));
+    });
+
     if (isFireAlarm || hasCritical) {
       pulseOpacity = (Math.sin(time * 8) + 1) / 2;
       pulseColor = new THREE.Color("#ff0000");
+    } else if (hasAIAnomaly) {
+      pulseOpacity = (Math.sin(time * 4) + 1) / 2;
+      pulseColor = new THREE.Color("#ff00ff"); // AI Anomaly color
     } else if (hasWarning) {
       pulseOpacity = (Math.sin(time * 2) + 1) / 2;
       pulseColor = new THREE.Color("#ff8800");
@@ -412,7 +423,7 @@ const People = ({ floorData, isIsolated, selected }) => {
   const meshRef = useRef();
   const viewMode = useTwinStore(state => state.viewMode);
   
-  const isFireAlarm = floorData.zones[0]?.sensors?.fireSafety?.isAlarmActive;
+  const isFireAlarm = floorData.rooms?.[0]?.sensors?.fireSafety?.isAlarmActive;
   const isFireMode = viewMode === 'FIRE';
   const count = 25;
   
@@ -1051,7 +1062,13 @@ const Scene = () => {
         
         <EffectComposer disableNormalPass multisampling={4}>
           <N8AO aoRadius={3} intensity={1.5} />
-          <Bloom luminanceThreshold={0.5} luminanceSmoothing={0.9} height={300} intensity={1.5} mipmapBlur />
+          <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} height={300} intensity={2.0} mipmapBlur />
+          <ChromaticAberration 
+            offset={[0.0015, 0.0015]} 
+            radialModulation={true} 
+            modulationOffset={0.5} 
+          />
+          <HueSaturation hue={0} saturation={0.25} />
           <Vignette eskil={false} offset={0.1} darkness={1.2} />
         </EffectComposer>
         

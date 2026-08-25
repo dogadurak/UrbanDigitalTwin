@@ -1,0 +1,9 @@
+requests
+pandas
+osmnx
+geopandas
+shapely
+python-dotenv
+psycopg2-binary
+SQLAlchemy
+GeoAlchemy2
