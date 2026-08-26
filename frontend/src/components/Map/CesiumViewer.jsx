@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import "cesium/Build/Cesium/Widgets/widgets.css";
 import * as Cesium from 'cesium';
 
 const CesiumViewer = ({ onEnterBuilding }) => {
@@ -8,8 +9,12 @@ const CesiumViewer = ({ onEnterBuilding }) => {
     // Required for Cesium access token (Optional for now since we rely on GeoJSON and default imagery)
     // Cesium.Ion.defaultAccessToken = 'YOUR_ACCESS_TOKEN';
 
+    if (typeof window !== 'undefined') {
+      window.CESIUM_BASE_URL = '/Cesium/';
+    }
+
     const viewer = new Cesium.Viewer(cesiumContainer.current, {
-      terrainProvider: Cesium.createWorldTerrain(),
+      terrain: new Cesium.EllipsoidTerrainProvider(),
       baseLayerPicker: false,
       geocoder: false,
       homeButton: false,
@@ -18,7 +23,7 @@ const CesiumViewer = ({ onEnterBuilding }) => {
       sceneModePicker: false,
       animation: false,
       timeline: false,
-      fullscreenButton: false
+      fullscreenButton: false,
     });
     
     viewer.scene.globe.enableLighting = true;

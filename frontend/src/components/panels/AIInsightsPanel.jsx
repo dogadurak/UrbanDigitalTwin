@@ -34,6 +34,8 @@ const AIInsightsPanel = () => {
             const expected = insight.expectedValue?.value;
             const observed = insight.observedValue?.value;
             const cause = insight.possibleCause?.value;
+            const isSpatial = insight.insightType?.value === 'SpatialEnergyAnomaly';
+            const targetBuilding = insight.target?.object || insight.refRoom?.object;
             
             return (
               <motion.div
@@ -42,25 +44,25 @@ const AIInsightsPanel = () => {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 className={`p-4 rounded-xl border backdrop-blur-md shadow-lg ${
-                  severity === 'CRITICAL' 
+                  severity === 'CRITICAL' || severity === 'HIGH'
                     ? 'bg-red-500/10 border-red-500/50' 
                     : 'bg-orange-500/10 border-orange-500/50'
                 }`}
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <Activity className={severity === 'CRITICAL' ? 'text-red-400' : 'text-orange-400'} size={20} />
-                  <h4 className={`font-bold text-sm tracking-wider ${severity === 'CRITICAL' ? 'text-red-300' : 'text-orange-300'}`}>
-                    AI ML ANOMALY ({severity})
+                  <Activity className={severity === 'CRITICAL' || severity === 'HIGH' ? 'text-red-400' : 'text-orange-400'} size={20} />
+                  <h4 className={`font-bold text-sm tracking-wider ${severity === 'CRITICAL' || severity === 'HIGH' ? 'text-red-300' : 'text-orange-300'}`}>
+                    {isSpatial ? 'SPATIAL AI ANOMALY' : 'AI ML ANOMALY'} ({severity})
                   </h4>
                 </div>
                 
                 <p className="text-gray-300 text-sm mb-3">
-                  {insight.insightType?.value} detected in <span className="text-white font-mono">{insight.refRoom?.object}</span>
+                  {insight.insightType?.value} in <span className="text-white font-mono">{targetBuilding}</span>
                 </p>
                 
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   <div className="bg-black/30 p-2 rounded border border-white/5">
-                    <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Expected</div>
+                    <div className="text-xs text-gray-400 uppercase tracking-wider mb-1">Expected (XGB V3)</div>
                     <div className="text-lg font-mono text-cyan-400">{expected ? expected.toFixed(1) : '--'} kW</div>
                   </div>
                   <div className="bg-black/30 p-2 rounded border border-white/5">

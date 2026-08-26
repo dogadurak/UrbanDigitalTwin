@@ -10,13 +10,25 @@
     "lat",
     "lon",
     "building_density",
-    "ndvi_current"
+    "ndvi_current",
+    "ndmi_current",
+    "ndbi_current",
+    "road_density",
+    "green_ratio",
+    "elevation",
+    "slope"
   ],
   "spatial_features": [
     "lat",
     "lon",
     "building_density",
-    "ndvi_current"
+    "ndvi_current",
+    "ndmi_current",
+    "ndbi_current",
+    "road_density",
+    "green_ratio",
+    "elevation",
+    "slope"
   ],
   "base_features": [
     "hour",

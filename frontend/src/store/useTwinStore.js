@@ -124,10 +124,32 @@ const useTwinStore = create((set, get) => ({
     }
   },
   
-  simulateWhatIf: (params) => {
-    const socket = get().socket;
-    if (socket) {
-      socket.emit('simulate_what_if', params);
+  simulateWhatIf: async (params) => {
+    const state = get();
+    const building = state.building;
+    if (!building) return;
+    
+    // params expected: target_temperature, target_ndvi, target_building_density, target_green_ratio
+    const requestBody = {
+      building_id: building.id.replace("urn:ngsi-ld:Building:", ""),
+      target_temperature: params.target_temperature !== undefined ? params.target_temperature : 20.0,
+      target_ndvi: params.target_ndvi !== undefined ? params.target_ndvi : 0.3,
+      target_building_density: params.target_building_density !== undefined ? params.target_building_density : 0.5,
+      target_green_ratio: params.target_green_ratio !== undefined ? params.target_green_ratio : 0.2
+    };
+
+    try {
+      const response = await fetch("http://localhost:8000/api/simulate-what-if", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody)
+      });
+      const data = await response.json();
+      if (data.simulated_energy !== undefined) {
+        set({ whatIfResult: { projectedPower: data.simulated_energy, delta: data.simulated_energy - (building.energy?.value || 0) } });
+      }
+    } catch (err) {
+      console.error("Failed to simulate what if", err);
     }
   },
   

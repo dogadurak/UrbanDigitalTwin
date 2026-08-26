@@ -7,3 +7,7 @@ numpy==1.26.4
 requests==2.32.3
 paho-mqtt==2.1.0
 psycopg2-binary
+tenacity==8.4.1
+pytest
+pytest-asyncio
+httpx

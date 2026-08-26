@@ -1,0 +1,90 @@
+{
+  "dataset": "BDG2 Pilot Data (4 Rat Office Buildings)",
+  "train_period": "2016",
+  "test_period": "2017+",
+  "train_samples": 34383,
+  "test_samples": 34747,
+  "baseline": {
+    "model": "Seasonal Naive (Building/Day/Hour)",
+    "MAE": 162.0991069020574,
+    "RMSE": 275.0052332050079,
+    "R2": 0.8969880678956431
+  },
+  "xgboost_v2": {
+    "model": "XGBoost-V2 (Autoregressive, No Spatial)",
+    "MAE": 31.102377003098226,
+    "RMSE": 63.99517093485229,
+    "R2": 0.9944217236808787,
+    "features": [
+      "outdoor_temperature",
+      "cloudCoverage",
+      "dewTemperature",
+      "hour",
+      "day_of_week",
+      "month",
+      "is_weekend",
+      "windSpeed",
+      "energy_lag_1",
+      "energy_lag_24",
+      "energy_lag_168",
+      "energy_rolling_mean_24",
+      "energy_rolling_mean_168"
+    ]
+  },
+  "xgboost_v3": {
+    "model": "XGBoost-V3 (Autoregressive + Spatial)",
+    "MAE": 25.301418627437236,
+    "RMSE": 58.16189796897744,
+    "R2": 0.9953923152607396,
+    "features": [
+      "outdoor_temperature",
+      "cloudCoverage",
+      "dewTemperature",
+      "hour",
+      "day_of_week",
+      "month",
+      "is_weekend",
+      "windSpeed",
+      "energy_lag_1",
+      "energy_lag_24",
+      "energy_lag_168",
+      "energy_rolling_mean_24",
+      "energy_rolling_mean_168",
+      "lat",
+      "lon",
+      "building_density",
+      "ndvi_current",
+      "ndmi_current",
+      "ndbi_current",
+      "road_density",
+      "green_ratio",
+      "elevation",
+      "slope"
+    ],
+    "spatial_features": [
+      "lat",
+      "lon",
+      "building_density",
+      "ndvi_current",
+      "ndmi_current",
+      "ndbi_current",
+      "road_density",
+      "green_ratio",
+      "elevation",
+      "slope"
+    ]
+  },
+  "improvement_v3_vs_baseline": 136.79768827462016,
+  "improvement_v3_vs_v2": 5.80095837566099,
+  "threshold": {
+    "calculated_on": "V3 Train Set (99th percentile)",
+    "value": 121.6434593261719
+  },
+  "test_alert_stats": {
+    "total_test_samples": 34747,
+    "alerts_triggered": 1018,
+    "test_alert_rate": 0.029297493308774857,
+    "mean_test_residual": 25.301418627437236,
+    "max_test_residual": 2320.159619140625
+  }
+}

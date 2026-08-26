@@ -15,15 +15,26 @@ const InspectorPanel = () => {
 
   // Combine history for chart
   let chartData = [];
-  if (zoneData && zoneData.sensors.temperature.history1h) {
+  if (zoneData && zoneData.sensors?.temperature?.history1h) {
     const tempHist = zoneData.sensors.temperature.history1h;
-    const itHist = zoneData.sensors.itLoad.history1h;
+    const itHist = zoneData.sensors.itLoad?.history1h || [];
     chartData = tempHist.map((tPoint, idx) => ({
       time: new Date(tPoint.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       temperature: tPoint.value,
       itLoad: itHist[idx] ? itHist[idx].value : 0
     }));
   }
+
+  // Safe defaults
+  const healthScore = zoneData?.healthScore ?? 100;
+  const tempVal = zoneData?.sensors?.temperature?.currentValue ?? 22.0;
+  const humVal = zoneData?.sensors?.humidity?.currentValue ?? 45.0;
+  const aqiVal = zoneData?.sensors?.airQuality?.currentValue ?? 50;
+  const itLoadVal = zoneData?.sensors?.itLoad?.currentValue ?? 10;
+  const occVal = zoneData?.sensors?.occupancy?.currentValue ?? 0;
+  const occMax = zoneData?.sensors?.occupancy?.max ?? 50;
+  const hvacStatus = zoneData?.assets?.hvac?.status ?? 'ONLINE';
+  const hvacHealth = zoneData?.assets?.hvac?.health ?? 100;
 
   return (
     <AnimatePresence>
@@ -45,12 +56,12 @@ const InspectorPanel = () => {
               </div>
               <div className="flex flex-col items-end gap-1.5">
                 <div className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border ${
-                  (zoneData.healthScore || 100) < 80 
+                  healthScore < 80 
                     ? 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30' 
                     : 'bg-green-500/15 text-green-300 border-green-500/30'
                 }`}>
                   <HeartPulse size={10} />
-                  Health: {Math.round(zoneData.healthScore || 100)}%
+                  Health: {Math.round(healthScore)}%
                 </div>
                 <div className="text-[9px] text-gray-500 font-mono">{zoneData.id?.slice(0, 8)}</div>
               </div>
@@ -59,7 +70,7 @@ const InspectorPanel = () => {
             {/* Gauge Charts Row */}
             <div className="grid grid-cols-2 gap-2 mb-3">
               <GaugeChart 
-                value={zoneData.sensors.temperature.currentValue}
+                value={tempVal}
                 min={15} max={35}
                 label="Temperature"
                 unit="°C"
@@ -68,7 +79,7 @@ const InspectorPanel = () => {
                 colorScheme="cyan"
               />
               <GaugeChart 
-                value={zoneData.sensors.humidity.currentValue}
+                value={humVal}
                 min={20} max={80}
                 label="Humidity"
                 unit="%"
@@ -80,23 +91,23 @@ const InspectorPanel = () => {
             
             {/* Quick Stats */}
             <div className="grid grid-cols-3 gap-2 mb-3">
-              <QuickStat icon={Wind} label="AQI" value={Math.round(zoneData.sensors.airQuality.currentValue)} color="text-green-400" />
-              <QuickStat icon={Server} label="IT Load" value={`${Math.round(zoneData.sensors.itLoad.currentValue)} kW`} color="text-yellow-400" />
-              <QuickStat icon={Users} label="Occupants" value={`${zoneData.sensors.occupancy.currentValue}/${zoneData.sensors.occupancy.max}`} color="text-blue-400" />
+              <QuickStat icon={Wind} label="AQI" value={Math.round(aqiVal)} color="text-green-400" />
+              <QuickStat icon={Server} label="IT Load" value={`${Math.round(itLoadVal)} kW`} color="text-yellow-400" />
+              <QuickStat icon={Users} label="Occupants" value={`${occVal}/${occMax}`} color="text-blue-400" />
             </div>
 
             {/* HVAC Status */}
             <div className={`flex items-center justify-between p-2 rounded-lg border text-xs ${
-              zoneData.assets.hvac.status === 'ONLINE' 
+              hvacStatus === 'ONLINE' 
                 ? 'bg-green-500/10 border-green-500/20 text-green-300' 
                 : 'bg-red-500/10 border-red-500/20 text-red-300'
             }`}>
               <div className="flex items-center gap-2">
                 <ShieldCheck size={12} />
-                <span>HVAC: {zoneData.assets.hvac.status}</span>
+                <span>HVAC: {hvacStatus}</span>
               </div>
               <span className="font-mono text-[10px]">
-                Health: {Math.round(zoneData.assets.hvac.health)}%
+                Health: {Math.round(hvacHealth)}%
               </span>
             </div>
           </div>

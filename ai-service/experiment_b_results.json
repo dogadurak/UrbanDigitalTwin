@@ -1,12 +1,41 @@
 {
-  "Baseline": {
-    "Precision": 0.053735255570117955,
-    "Recall": 0.05366492146596859,
-    "F1": 0.053700065487884745
+  "anomaly_injection": {
+    "method": "dynamic (2.5 * per-building std_dev)",
+    "total_injected": 764,
+    "total_test_samples": 34747
   },
-  "Spatial": {
-    "Precision": 0.032722513089005235,
-    "Recall": 0.032722513089005235,
-    "F1": 0.032722513089005235
+  "threshold_method": {
+    "baseline": {
+      "Precision": 0.08579738245273873,
+      "Recall": 0.23167539267015708,
+      "F1": 0.125221082419526,
+      "TP": 177,
+      "FP": 1886
+    },
+    "spatial": {
+      "Precision": 0.050924752976944515,
+      "Recall": 0.5261780104712042,
+      "F1": 0.09286209286209286,
+      "TP": 402,
+      "FP": 7492
+    },
+    "baseline_threshold": 1532.2558809570312,
+    "spatial_threshold": 269.20535385742176
+  },
+  "isolation_forest_method": {
+    "baseline": {
+      "Precision": 0.24214659685863874,
+      "Recall": 0.24214659685863874,
+      "F1": 0.24214659685863874,
+      "TP": 185,
+      "FP": 579
+    },
+    "spatial": {
+      "Precision": 0.2054973821989529,
+      "Recall": 0.2054973821989529,
+      "F1": 0.2054973821989529,
+      "TP": 157,
+      "FP": 607
+    }
   }
 }
