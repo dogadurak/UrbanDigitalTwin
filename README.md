@@ -86,6 +86,11 @@ cd ../../..
 #    /docker-entrypoint-initdb.d and every *.sql runs in order 01..07.
 docker compose up -d --build
 
+# The FIWARE stack (Orion-LD + Mongo + MQTT) is optional and off by default.
+# It costs ~365 MB and ~26% CPU and is not needed to build the dataset, run the
+# experiments, serve the model or view the dashboard:
+#   FIWARE_ENABLED=true docker compose --profile fiware up -d
+
 # 2. Build the dataset  (~23 M rows, partitioned by site)
 docker exec -e PYTHONPATH=/app -w /app geotwin-ai-service \
   python -m app.data_engineering.build_dataset

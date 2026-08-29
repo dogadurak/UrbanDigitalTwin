@@ -2,9 +2,17 @@ const axios = require('axios');
 
 const ORION_LD_URL = process.env.ORION_LD_URL || 'http://localhost:1026/ngsi-ld/v1';
 
+// The FIWARE stack is optional: it sits behind the `fiware` compose profile and
+// is not started by default. Without this guard the simulation loop kept
+// pushing entities at a broker that was not there, failing several times a
+// second -- which flooded the log and starved the event loop badly enough that
+// the GIS endpoints stopped responding.
+const FIWARE_ENABLED = String(process.env.FIWARE_ENABLED ?? 'false').toLowerCase() === 'true';
+
 class FiwareGateway {
   
   async _upsertEntity(payload) {
+    if (!FIWARE_ENABLED) return;
     try {
       await axios.post(`${ORION_LD_URL}/entities`, payload, {
         headers: { 
