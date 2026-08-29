@@ -42,6 +42,10 @@ export default function GlobeMap({ blocks, selected, onSelect }) {
     });
 
     viewer.scene.globe.enableLighting = false;
+    // Let Cesium drop labels that would overlap rather than stacking them.
+    viewer.entities.collectionChanged.addEventListener(() => {
+      if (viewer.scene.primitives) viewer.scene.requestRender();
+    });
     viewer.scene.skyAtmosphere.show = true;
     viewer.cesiumWidget.creditContainer.style.display = 'none';
     viewerRef.current = viewer;
@@ -81,14 +85,26 @@ export default function GlobeMap({ blocks, selected, onSelect }) {
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
         label: {
-          text: `${b.sites.join(' / ')}  ${b.cv_rmse ?? '?'}%`,
-          font: '13px system-ui, sans-serif',
+          // Only the block name by default. The London and Ottawa blocks sit
+          // within a few kilometres of each other, so drawing every site name
+          // and score at this zoom produced an unreadable pile; the score
+          // appears on the selected city and in the side list instead.
+          text: b.block === selected
+            ? `${b.sites.join(' / ')}  ${b.cv_rmse ?? '?'}%`
+            : b.block,
+          font: b.block === selected ? 'bold 13px system-ui, sans-serif'
+                                     : '12px system-ui, sans-serif',
           fillColor: Cesium.Color.WHITE,
           outlineColor: Cesium.Color.BLACK,
           outlineWidth: 3,
           style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          pixelOffset: new Cesium.Cartesian2(0, -22),
+          pixelOffset: new Cesium.Cartesian2(0, -20),
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          // Cesium hides a label rather than overlapping a higher-priority one.
+          translucencyByDistance: undefined,
+          showBackground: b.block === selected,
+          backgroundColor: Cesium.Color.fromCssColorString('#020617').withAlpha(0.75),
+          backgroundPadding: new Cesium.Cartesian2(6, 4),
         },
       });
     });

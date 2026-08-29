@@ -22,9 +22,9 @@ PROCESSED = "data/processed"
 PROTOCOL_ORDER = ["random", "temporal", "leave_buildings_out", "leave_block_out"]
 
 PROTOCOL_LABELS = {
-    "random": "Random split",
-    "temporal": "Temporal (2016 to 2017)",
-    "leave_buildings_out": "Unseen building",
+    "random": "Random",
+    "temporal": "2016 to 2017",
+    "leave_buildings_out": "Unseen bldg",
     "leave_block_out": "Unseen city",
 }
 
@@ -55,15 +55,60 @@ def _load(task):
     return pd.read_csv(path), meta
 
 
+def _horizon_label(hours):
+    if hours is None:
+        return None
+    if hours == 1:
+        return "1 h ahead"
+    if hours < 24:
+        return "{} h ahead".format(hours)
+    if hours == 24:
+        return "day ahead"
+    if hours % 168 == 0:
+        weeks = hours // 168
+        return "{} week ahead".format(weeks) if weeks == 1 else "{} weeks ahead".format(weeks)
+    return "{} h ahead".format(hours)
+
+
 @router.get("/results/tasks")
 def available_tasks():
-    """Which experiments have actually been run."""
+    """Which experiments have actually been run, with a label for each.
+
+    Labels come from each run's recorded metadata rather than from its directory
+    name. Running the horizon sweep created forecast_h24 and forecast_h168
+    alongside forecast, and a name-matching label rendered all three as
+    "Cold start" -- three identical buttons for three different experiments.
+    """
     if not os.path.isdir(RESULTS_ROOT):
         return {"tasks": []}
+
     tasks = []
     for entry in sorted(os.listdir(RESULTS_ROOT)):
-        if os.path.exists(os.path.join(RESULTS_ROOT, entry, "fold_results.csv")):
-            tasks.append(entry)
+        if not os.path.exists(os.path.join(RESULTS_ROOT, entry, "fold_results.csv")):
+            continue
+        meta = {}
+        meta_path = os.path.join(RESULTS_ROOT, entry, "run.json")
+        if os.path.exists(meta_path):
+            with open(meta_path, "r", encoding="utf-8") as fh:
+                meta = json.load(fh)
+
+        task = meta.get("task", entry)
+        horizon = meta.get("horizon_hours")
+        if task == "cold_start":
+            label, group, order = "No meter history", "cold_start", 9999
+        else:
+            h = horizon if horizon is not None else 1
+            label, group, order = _horizon_label(h) or entry, "forecast", h
+
+        tasks.append({
+            "key": entry,
+            "label": label,
+            "group": group,
+            "horizon_hours": horizon,
+            "has_city_map": task == "cold_start",
+        })
+
+    tasks.sort(key=lambda t: (t["group"] != "forecast", t["horizon_hours"] or 0))
     return {"tasks": tasks}
 
 

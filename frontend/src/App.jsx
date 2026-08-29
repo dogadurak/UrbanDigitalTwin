@@ -16,6 +16,8 @@ import { api, scoreColor, SCORE_STOPS } from './api';
 export default function App() {
   const [task, setTask] = useState('cold_start');
   const [tasks, setTasks] = useState([]);
+  const activeTask = tasks.find((t) => t.key === task);
+  const isColdStartTask = !activeTask || activeTask.group === 'cold_start';
   const [summary, setSummary] = useState(null);
   const [cities, setCities] = useState(null);
   const [health, setHealth] = useState(null);
@@ -48,7 +50,7 @@ export default function App() {
 
   const headline = useMemo(() => {
     if (!summary) return null;
-    const col = task === 'forecast' ? 'temporal' : 'leave_block_out';
+    const col = isColdStartTask ? 'leave_block_out' : 'temporal';
     const get = (m) => summary.matrix.find((r) => r.model === m)?.[col]?.median;
     return {
       m2: get('M2_weather'), m3: get('M3_building'),
@@ -57,7 +59,6 @@ export default function App() {
   }, [summary, task]);
 
   const selectedCity = cities?.blocks?.find((b) => b.block === selected);
-  const isColdStart = task === 'cold_start';
 
   return (
     <div className="w-full h-screen flex flex-col bg-slate-950 text-slate-200 font-sans overflow-hidden">
@@ -71,13 +72,26 @@ export default function App() {
             2016–2017 hourly · model {health?.spec ?? '—'}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {tasks.map((t) => (
-            <button key={t} onClick={() => setTask(t)}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] uppercase tracking-wide text-slate-600 mr-1">
+              Metered · forecast horizon
+            </span>
+            {tasks.filter((t) => t.group === 'forecast').map((t) => (
+              <button key={t.key} onClick={() => setTask(t.key)}
+                className={`text-[12px] px-2.5 py-1.5 rounded border transition ${
+                  task === t.key ? 'bg-sky-600 border-sky-500 text-white'
+                                 : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'}`}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {tasks.filter((t) => t.group === 'cold_start').map((t) => (
+            <button key={t.key} onClick={() => setTask(t.key)}
               className={`text-[12px] px-3 py-1.5 rounded border transition ${
-                task === t ? 'bg-sky-600 border-sky-500 text-white'
-                           : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'}`}>
-              {t === 'forecast' ? 'Metered building' : 'Cold start (no history)'}
+                task === t.key ? 'bg-sky-600 border-sky-500 text-white'
+                               : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'}`}>
+              {t.label}
             </button>
           ))}
         </div>
@@ -90,9 +104,9 @@ export default function App() {
           <Metric label="+ site identity (control)" value={headline.identity} />
           <Metric label="+ building attributes" value={headline.m3} highlight />
           <div className="ml-auto text-[11px] text-slate-500 max-w-sm text-right leading-relaxed">
-            {task === 'forecast'
-              ? 'Hourly forecast error. ASHRAE Guideline 14 calibration threshold is 30%.'
-              : 'Error when predicting a building with no meter history, in a city never seen in training.'}
+            {isColdStartTask
+              ? 'Error when predicting a building with no meter history, in a city never seen in training.'
+              : `Forecast error ${activeTask?.label ?? ''}, for a building already metered. ASHRAE Guideline 14 allows 30%.`}
           </div>
         </div>
       )}
@@ -128,15 +142,15 @@ export default function App() {
             </>
           ) : (
             <div className="w-full h-full flex items-center justify-center text-slate-600 text-sm px-8 text-center">
-              {task === 'forecast'
-                ? 'The metered-building task holds out time, not cities, so there is no transfer map for it. Switch to Cold start to see the map.'
-                : 'No leave-one-city-out results yet. Run the ladder experiment.'}
+              {isColdStartTask
+                ? 'No leave-one-city-out results yet. Run the ladder experiment.'
+                : 'A forecast horizon holds out time, not cities, so there is no transfer map for it. Switch to "No meter history" to see the map.'}
             </div>
           )}
         </div>
 
         {/* Side panel */}
-        <aside className="w-[440px] border-l border-slate-800 flex flex-col shrink-0">
+        <aside className="w-[500px] border-l border-slate-800 flex flex-col shrink-0">
           <nav className="flex border-b border-slate-800 shrink-0">
             {[['results', 'Results'], ['screening', 'Screening'],
               ['cities', 'Cities'], ['buildings', 'Buildings']].map(
@@ -170,9 +184,9 @@ export default function App() {
 
             {tab === 'cities' && (
               <section className="p-4">
-                {!isColdStart && (
+                {!isColdStartTask && (
                   <p className="text-[11px] text-slate-500 mb-3">
-                    City-level transfer is only defined for the cold-start task.
+                    City-level transfer is only defined without meter history.
                   </p>
                 )}
                 <h3 className="text-sm font-semibold text-slate-200 mb-2">
