@@ -1,4 +1,4 @@
-# QGIS Validation Workflow for GeoTwin V3
+# QGIS Validation Workflow
 
 > **Status: PLANNED, not yet executable.**
 >

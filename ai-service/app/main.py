@@ -1,4 +1,4 @@
-"""GeoTwin AI service.
+"""Building Energy Intelligence — model serving API.
 
 Serves the cold-start energy model: given a building's real attributes, the
 calendar and the weather, predict its hourly electricity demand. The model is
@@ -46,7 +46,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ai_service")
 
 app = FastAPI(
-    title="GeoTwin AI Service",
+    title="Building Energy Intelligence — API",
     description="Cold-start building energy prediction on Building Data Genome 2.",
     version="4.0.0",
 )

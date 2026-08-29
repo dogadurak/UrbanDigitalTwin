@@ -20,13 +20,24 @@ export default function App() {
   const [cities, setCities] = useState(null);
   const [health, setHealth] = useState(null);
   const [selected, setSelected] = useState(null);
-  const [tab, setTab] = useState('results');
+  // Tab lives in the URL hash so a view can be linked to, and so the
+  // screenshot script can address each one directly.
+  const [tab, setTabState] = useState(
+    () => (typeof window !== 'undefined' && window.location.hash.slice(1)) || 'results',
+  );
+  const setTab = (t) => {
+    setTabState(t);
+    if (typeof window !== 'undefined') window.location.hash = t;
+  };
   const [buildingId, setBuildingId] = useState('');
   const [error, setError] = useState(null);
 
   useEffect(() => {
     api.health().then(setHealth).catch((e) => setError(e.message));
     api.tasks().then((d) => setTasks(d.tasks || [])).catch(() => {});
+    const onHash = () => setTabState(window.location.hash.slice(1) || 'results');
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
   useEffect(() => {
@@ -53,7 +64,7 @@ export default function App() {
       <header className="border-b border-slate-800 px-5 py-3 flex items-center justify-between shrink-0">
         <div>
           <h1 className="text-base font-semibold tracking-tight">
-            Urban Building Energy — Benchmark
+            Building Energy Intelligence
           </h1>
           <p className="text-[11px] text-slate-500">
             Building Data Genome 2 · {health?.trained_on_buildings?.toLocaleString() ?? '—'} buildings ·
