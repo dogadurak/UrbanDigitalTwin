@@ -14,7 +14,11 @@ meter readings from 1,381 real buildings across 12 cities**. It forecasts
 demand, finds buildings consuming far more than comparable ones, and says what
 to inspect — with the limits of each answer stated rather than implied.
 
-![Overview](docs/img/01-overview.png)
+![Forecast accuracy against horizon](docs/img/fig-horizon.png)
+
+*Every figure here is generated from the result files by
+`app/experiments/make_figures.py`, so none can drift from the numbers it claims
+to show.*
 
 ---
 
@@ -44,8 +48,6 @@ with the model's prediction drawn over it. The model is given **no past reading*
 for that building, so the two curves are a genuine out-of-sample comparison
 rather than a fit replayed against its own training data.
 
-![Buildings](docs/img/03-buildings.png)
-
 ### 2. Is it abnormal?
 
 A baseline is fitted to the building's own 2016 from calendar and weather alone,
@@ -65,8 +67,8 @@ Two guards, both added after the first version produced nonsense:
 
 ### 3. What will it consume?
 
-Accuracy is reported **as a curve, not a number**, because a forecast figure
-without its horizon is not a result:
+Accuracy is reported **as a curve, not a number** (figure at the top), because a
+forecast figure without its horizon is not a result:
 
 | Horizon | Temporal | Unseen building | NMBE | G14 |
 |---|---:|---:|---:|:---:|
@@ -88,7 +90,7 @@ its intensity against the median for its use type, and its consumption against
 what the model predicts for a building of that type, size and age. Requiring
 both cuts the list from 249 to 79 — every name costs someone a site visit.
 
-![Screening](docs/img/02-screening.png)
+![What each addition is worth](docs/img/fig-ladder.png)
 
 Then the diagnosis. Load *shape* is compared against the same peer group,
 because shape says **when** the energy goes, which annual totals cannot:
@@ -110,11 +112,12 @@ conclusions about a building.
 
 ## Where the model transfers, and where it does not
 
-Each disc is a city held **entirely out of training**, coloured by the model's
-error there. Discs are drawn at 40 km — the dataset's own positional
-uncertainty, shown to scale rather than implied away.
+Each bar is a city held **entirely out of training** — the model saw no building
+from it. The dashboard shows the same result on a globe, with each city drawn as
+a 40 km disc: the dataset's own positional uncertainty, to scale rather than
+implied away.
 
-![Cities](docs/img/04-cities.png)
+![Per-city transfer](docs/img/fig-cities.png)
 
 The model is not equally trustworthy everywhere, and the system reports that:
 

@@ -113,6 +113,15 @@ case where location is all you know.
 
 ## 3. Results
 
+![Forecast accuracy against horizon](img/fig-horizon.png)
+
+![What each addition is worth](img/fig-ladder.png)
+
+![Per-city transfer](img/fig-cities.png)
+
+*Figures are rendered from the result files by `app/experiments/make_figures.py`.*
+
+
 1210 buildings, 12 blocks, 968,000 rows, 3 seeds, 4 protocols.
 
 ### CV(RMSE) %, lower is better
