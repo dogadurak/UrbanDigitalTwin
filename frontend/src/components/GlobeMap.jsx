@@ -17,6 +17,7 @@ import { scoreColor } from '../api';
 export default function GlobeMap({ blocks, selected, onSelect }) {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
+  const framedRef = useRef(false);
 
   useEffect(() => {
     if (!containerRef.current || viewerRef.current) return;
@@ -40,6 +41,18 @@ export default function GlobeMap({ blocks, selected, onSelect }) {
       infoBox: false,
       selectionIndicator: false,
     });
+
+    // Explicitly enable the navigation the user expects. Cesium defaults these
+    // on, but they are cheap to state and easy to lose to a stray option.
+    const c = viewer.scene.screenSpaceCameraController;
+    c.enableZoom = true;
+    c.enableRotate = true;
+    c.enableTilt = true;
+    c.enableTranslate = true;
+    c.enableLook = true;
+    // Let the user get close to a city; the default floor stops well short.
+    c.minimumZoomDistance = 800;
+    c.maximumZoomDistance = 40000000;
 
     viewer.scene.globe.enableLighting = false;
     // Let Cesium drop labels that would overlap rather than stacking them.
@@ -109,13 +122,32 @@ export default function GlobeMap({ blocks, selected, onSelect }) {
       });
     });
 
-    if (located.length) {
-      viewer.camera.flyHome(0);
-      viewer.camera.setView({
-        destination: Cesium.Cartesian3.fromDegrees(-45, 45, 14000000),
-      });
-    }
+    // Framing deliberately does NOT happen here. This effect re-runs whenever
+    // `selected` changes, and resetting the camera in it snapped the view back
+    // to the whole globe on every click -- which made zooming look broken.
   }, [blocks, selected]);
+
+  // Frame the world once, the first time markers arrive.
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || framedRef.current || !blocks?.some((b) => b.lat != null)) return;
+    viewer.camera.setView({
+      destination: Cesium.Cartesian3.fromDegrees(-45, 42, 20000000),
+    });
+    framedRef.current = true;
+  }, [blocks]);
+
+  // Fly to a city when it is selected, so the side list drives the map.
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || !selected || !blocks) return;
+    const b = blocks.find((x) => x.block === selected);
+    if (!b || b.lat == null) return;
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(b.lng, b.lat - 2.2, 1200000),
+      duration: 1.2,
+    });
+  }, [selected, blocks]);
 
   // Clicking a city selects it.
   useEffect(() => {

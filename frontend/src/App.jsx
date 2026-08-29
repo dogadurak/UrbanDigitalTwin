@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import GlobeMap from './components/GlobeMap';
 import ResultsTable from './components/ResultsTable';
 import PredictPanel from './components/PredictPanel';
@@ -33,6 +33,36 @@ export default function App() {
   };
   const [buildingId, setBuildingId] = useState('');
   const [error, setError] = useState(null);
+
+  // Panel width is draggable and remembered: the ladder table wants room, the
+  // map wants room, and which matters depends on what you are reading.
+  const [panelWidth, setPanelWidth] = useState(() => {
+    const saved = typeof window !== 'undefined' && window.localStorage.getItem('bei.panelWidth');
+    return saved ? Number(saved) : 500;
+  });
+  const dragging = useRef(false);
+
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!dragging.current) return;
+      // Clamped so neither pane can be dragged away entirely.
+      const next = Math.min(Math.max(window.innerWidth - e.clientX, 360), window.innerWidth - 320);
+      setPanelWidth(next);
+    };
+    const onUp = () => {
+      if (!dragging.current) return;
+      dragging.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      try { window.localStorage.setItem('bei.panelWidth', String(panelWidth)); } catch { /* private mode */ }
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [panelWidth]);
 
   useEffect(() => {
     api.health().then(setHealth).catch((e) => setError(e.message));
@@ -149,8 +179,21 @@ export default function App() {
           )}
         </div>
 
+        {/* Drag handle */}
+        <div
+          onMouseDown={() => {
+            dragging.current = true;
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+          }}
+          onDoubleClick={() => setPanelWidth(500)}
+          title="Drag to resize · double-click to reset"
+          className="w-1.5 shrink-0 cursor-col-resize bg-slate-800 hover:bg-sky-600 transition-colors"
+        />
+
         {/* Side panel */}
-        <aside className="w-[500px] border-l border-slate-800 flex flex-col shrink-0">
+        <aside style={{ width: panelWidth }}
+          className="border-l border-slate-800 flex flex-col shrink-0">
           <nav className="flex border-b border-slate-800 shrink-0">
             {[['results', 'Results'], ['screening', 'Screening'],
               ['cities', 'Cities'], ['buildings', 'Buildings']].map(
