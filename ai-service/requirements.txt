@@ -12,3 +12,4 @@ pytest
 pytest-asyncio
 httpx
 pyarrow==17.0.0
+scipy==1.17.1
