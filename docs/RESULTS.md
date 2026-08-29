@@ -177,6 +177,45 @@ with this in mind.
 
 ---
 
+## 3b. The metered-building task: what the model can actually do
+
+The results above are the *cold-start* case — a building with no meter history,
+the hardest setting and the only one where a contextual claim can be tested. The
+operational case for a metered building is the `forecast` task, where the
+model has the recent past available.
+
+1381 buildings, 966,700 rows, 3 seeds:
+
+| Model | random | temporal (2016→2017) | unseen building |
+|---|---:|---:|---:|
+| M0 seasonal naive | 79.9 | 80.5 | 80.8 |
+| M1 calendar + lags | 9.4 | 9.5 | 9.7 |
+| M2 + weather | 9.3 | 9.5 | 9.6 |
+| **M3 + building attributes** | **9.1** | **9.3** | **9.5** |
+| M3′ + site identity | 9.2 | 9.4 | 9.5 |
+
+**CV(RMSE) 9.3% on a held-out year.** ASHRAE Guideline 14 sets the hourly
+calibration threshold at **30%**; this is roughly a third of it. The figure
+holds at 9.5% even for buildings the model has never seen, so it is not a
+memorisation artefact.
+
+Two things this table settles:
+
+**Lags dominate, as predicted.** M0 → M1 is 80.5% → 9.5%: autoregressive
+features remove 88% of the error. This is why the contextual question had to be
+asked in the lag-free task. Here, building attributes are worth 0.24 CV(RMSE)
+points and site identity 0.14 — both negligible. Had the whole study been run
+in this setting, "context adds nothing" would have been an artefact of the
+design rather than a finding about the world.
+
+**The two tasks answer different questions.** For a metered building the model
+is accurate and context is irrelevant. For an unmetered one, accuracy is much
+lower (43.7% temporal, 59.5% for an unseen city) and building attributes carry
+most of what can be recovered. Reporting either number alone would misrepresent
+the system.
+
+---
+
 ## 4. What was measured, and how confidently
 
 | Claim | Evidence | Confidence |
@@ -185,6 +224,8 @@ with this in mind.
 | Site identity adds little | 2.8 pts median, consistent direction (9/12) | Moderate — fold spread is large |
 | Weather hurts cross-city transfer | *p* = 0.003, but only 2/12 folds improved | Moderate |
 | Random split is ~2× optimistic | Every model, every rung | High |
+| Metered-building forecast at 9.3% CV(RMSE) | held-out year, 1381 buildings, 3 seeds | High |
+| Lags remove 88% of the error | M0 80.5% -> M1 9.5% | High |
 | Site-level RS cannot beat 2.8 pts | Follows from M3′ being an upper bound | High (logical, not empirical) |
 
 **Detectability.** With 12 blocks and the observed fold spread, a paired

@@ -13,7 +13,13 @@ context actually help?**
 On the Building Data Genome 2 dataset, the answer is **no, by a measured
 margin** — and the interesting part is *how* that was established.
 
-> **Headline result.** Location encoded perfectly — one-hot site identity, the
+> **The model works.** For a metered building, hourly forecast accuracy is
+> **9.3% CV(RMSE)** on a held-out year — about a third of the 30% threshold
+> ASHRAE Guideline 14 sets for hourly calibration, and it holds at 9.5% for
+> buildings the model has never seen. For an unmetered building, predicting
+> from attributes and weather alone reaches 43.7%.
+>
+> **And the context question has an answer.** Location encoded perfectly — one-hot site identity, the
 > upper bound on any satellite or OSM variable computable here — is worth
 > **2.8 CV(RMSE) points**. Real building attributes are worth **21.5**. A 7.7×
 > difference, consistent across 12 of 12 held-out city blocks.
@@ -56,12 +62,13 @@ identity, measuring site identity bounds all of them at once.
 | Evaluation harness (4 protocols, ASHRAE G14, bootstrap, power) | **Real**, 63 tests |
 | Served model `energy_cold_start` | **Real**, trained on 1381 buildings, ships with held-out metrics |
 | OSM layer (`/api/gis/*`) | **Real** Overpass data — 2465 buildings, 308 roads, İzmir pilot area |
+| Dashboard | **Real** — reads `results/ladder/*` and the served model; no value is generated for display |
 | `spatial_features`, `sentinel_observations` | **Empty by design** until an honest source exists |
-| 3D dashboard sensor values (temperature, CO₂, occupancy, HVAC) | **Simulated** — `Math.random()` in `SimulationEngine.js`, a UI demo, not measurements |
 
-The last row matters: the frontend is a visualisation shell driven by a
-simulator. It is not connected to the BDG2 analysis and its numbers are not
-data. The science lives in `ai-service/`.
+Every number on the screen traces to a file in `results/` or to a live model
+call. The dashboard previously animated drones, CCTV feeds and lift positions
+over `Math.random()` telemetry for a fictional building; that layer was removed
+rather than relabelled.
 
 ---
 
@@ -167,7 +174,9 @@ ai-service/app/
 db/                   01..07, applied in order on first start
 docs/                 RESULTS.md, DATA_QUALITY.md, QGIS_VALIDATION_WORKFLOW.md
 archive/legacy_v3/    quarantined pre-Sprint-1 work, with the defects documented
-backend/, frontend/   Node + React visualisation shell (simulated telemetry)
+frontend/src/         results dashboard: Cesium globe of the 12 held-out
+                      city blocks, ladder table, live prediction panel
+backend/              Node service for the OSM/PostGIS layer
 ```
 
 ## Tests
@@ -186,7 +195,6 @@ frames, including the coordinate sign-error and identity-leakage cases.
 - **Electricity only.** Chilled water and steam are unpulled LFS pointers, so cooling load — where a thermal-context hypothesis is most plausible — is untested.
 - **CV(RMSE) is unstable for very small consumers** (see the `Lamb` fold, [docs/RESULTS.md](docs/RESULTS.md) §3).
 - **No anomaly benchmark.** The cleaned meter files already had anomalies removed by the dataset authors, so a detector trained on them is self-defeating.
-- **The dashboard is a simulation.** See the table above.
 
 ## Next
 
