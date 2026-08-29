@@ -1,3 +1,19 @@
+"""Legacy V3 trainer -- NOT RUNNABLE as-is after Sprint 1.
+
+fetch_spatial_features() reads the PostGIS `spatial_features` table, which is
+now intentionally empty: its previous contents were hand-authored constants,
+not ingested products (see archive/legacy_v3/README.md). The V2 (temporal +
+autoregressive) path is unaffected; the V3 path will produce an empty merge.
+
+This file is left unmodified on purpose -- Sprint 1 did not touch the model.
+Sprint 3 replaces it with a configured experiment runner that includes a
+building-ID control arm and leave-one-site-out cross-validation.
+
+Note for whoever picks this up: features_v3 includes `lat` and `lon`. With 14
+distinct coordinate pairs in BDG2 those are a site label, not a spatial signal.
+app/data_engineering/leakage.py now rejects them.
+"""
+
 import pandas as pd
 import numpy as np
 import xgboost as xgb

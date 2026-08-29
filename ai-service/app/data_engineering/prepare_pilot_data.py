@@ -1,3 +1,17 @@
+"""SUPERSEDED by app/data_engineering/build_dataset.py (Sprint 1).
+
+This builds the original 4-building pilot: 0.24% of BDG2, all from one site,
+targeting absolute kWh across buildings whose mean consumption spans 61x. On
+that setup, predicting each building's constant mean already scores R2 = 0.9188,
+so aggregate metrics measured scale rather than skill.
+
+Kept only so the archived V3 results remain reproducible. For new work use:
+
+    python -m app.data_engineering.build_dataset
+
+See docs/DATA_QUALITY.md and archive/legacy_v3/README.md.
+"""
+
 import pandas as pd
 import numpy as np
 import os
