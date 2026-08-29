@@ -1,0 +1,119 @@
+{
+  "model_name": "energy_cold_start",
+  "spec": "M3_building",
+  "spec_description": "+ floor area, use, age, floors",
+  "task": "cold_start",
+  "note": "Lag-free by design: predicts for a building with no meter history from calendar, weather and building attributes. No spatial or remote-sensing feature is used -- BDG2 publishes city-level coordinates with a 40 km bound, so none can be computed honestly.",
+  "target": "log1p(meter_reading_kWh)",
+  "inverse_transform": "expm1",
+  "feature_columns": [
+    "hour",
+    "day_of_week",
+    "month",
+    "is_weekend",
+    "airTemperature",
+    "dewTemperature",
+    "windSpeed",
+    "cloudCoverage",
+    "cdh",
+    "hdh",
+    "log_sqm",
+    "building_age",
+    "numberoffloors",
+    "primaryspaceusage=Education",
+    "primaryspaceusage=Entertainment/public assembly",
+    "primaryspaceusage=Food sales and service",
+    "primaryspaceusage=Healthcare",
+    "primaryspaceusage=Lodging/residential",
+    "primaryspaceusage=Manufacturing/industrial",
+    "primaryspaceusage=Office",
+    "primaryspaceusage=Other",
+    "primaryspaceusage=Parking",
+    "primaryspaceusage=Public services",
+    "primaryspaceusage=Religious worship",
+    "primaryspaceusage=Retail",
+    "primaryspaceusage=Services",
+    "primaryspaceusage=Technology/science",
+    "primaryspaceusage=Utility",
+    "primaryspaceusage=Warehouse/storage"
+  ],
+  "categorical_vocabulary": {
+    "primaryspaceusage": [
+      "Education",
+      "Entertainment/public assembly",
+      "Food sales and service",
+      "Healthcare",
+      "Lodging/residential",
+      "Manufacturing/industrial",
+      "Office",
+      "Other",
+      "Parking",
+      "Public services",
+      "Religious worship",
+      "Retail",
+      "Services",
+      "Technology/science",
+      "Utility",
+      "Warehouse/storage"
+    ]
+  },
+  "n_train_rows": 2071500,
+  "n_train_buildings": 1381,
+  "cohort": {
+    "name": "temporal",
+    "description": "All quality-screened buildings. Coordinates are not required: this cohort supports forecasting, building-attribute and identity-control experiments.",
+    "available": true,
+    "unavailable_reason": "",
+    "n_buildings": 1381,
+    "n_sites": 18,
+    "n_folds": 15,
+    "folds": [
+      "Bear",
+      "Bobcat",
+      "Bull",
+      "Cockatoo",
+      "Crow",
+      "Eagle",
+      "Fox",
+      "Gator",
+      "Hog",
+      "Lamb",
+      "Mouse",
+      "Panther",
+      "Peacock",
+      "Rat",
+      "Wolf"
+    ],
+    "n_geo_usable_sites": 14
+  },
+  "n_estimators": 400,
+  "seed": 0,
+  "held_out_metrics": {
+    "leave_block_out": {
+      "cv_rmse_median_pct": 75.65,
+      "fold_sd": 53.3,
+      "n_folds": 12,
+      "nmbe_median_pct": -16.61
+    },
+    "leave_buildings_out": {
+      "cv_rmse_median_pct": 58.54,
+      "fold_sd": 2.73,
+      "n_folds": 5,
+      "nmbe_median_pct": -0.83
+    },
+    "random": {
+      "cv_rmse_median_pct": 42.7,
+      "fold_sd": null,
+      "n_folds": 1,
+      "nmbe_median_pct": 7.25
+    },
+    "temporal": {
+      "cv_rmse_median_pct": 43.68,
+      "fold_sd": null,
+      "n_folds": 1,
+      "nmbe_median_pct": -0.36
+    }
+  },
+  "held_out_metrics_note": "CV(RMSE) and NMBE per ASHRAE Guideline 14, computed per building then averaged over folds, on data the model had not seen. In-sample scores are deliberately not reported.",
+  "git_sha": "unknown"
+}
