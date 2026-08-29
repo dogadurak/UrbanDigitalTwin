@@ -177,42 +177,50 @@ with this in mind.
 
 ---
 
-## 3b. The metered-building task: what the model can actually do
+## 3b. The metered-building task, by forecast horizon
 
-The results above are the *cold-start* case — a building with no meter history,
-the hardest setting and the only one where a contextual claim can be tested. The
-operational case for a metered building is the `forecast` task, where the
-model has the recent past available.
+The results above are the *cold-start* case — no meter history, the hardest
+setting and the only one where a contextual claim can be tested. For a building
+that is already metered, the question is how far ahead you need to predict.
 
-1381 buildings, 966,700 rows, 3 seeds:
+A forecast accuracy figure without its horizon is not a result. Predicting `t+h`
+from information available at `t`, the most recent legal reading is `h` hours
+before the target, so a longer horizon strictly removes features:
 
-| Model | random | temporal (2016→2017) | unseen building |
-|---|---:|---:|---:|
-| M0 seasonal naive | 79.9 | 80.5 | 80.8 |
-| M1 calendar + lags | 9.4 | 9.5 | 9.7 |
-| M2 + weather | 9.3 | 9.5 | 9.6 |
-| **M3 + building attributes** | **9.1** | **9.3** | **9.5** |
-| M3′ + site identity | 9.2 | 9.4 | 9.5 |
+| Horizon | Temporal (2016→2017) | Unseen building | NMBE | Lags available | G14 |
+|---|---:|---:|---:|---|:---:|
+| 1 hour ahead | **9.26%** | 9.52% | +0.56% | lag 1, 24, 168 | ✔ |
+| 24 hours ahead | **16.03%** | 16.21% | +1.18% | lag 24, 168 | ✔ |
+| 1 week ahead | **21.43%** | 22.16% | +1.55% | lag 168 | ✔ |
+| No history (cold start) | 43.65% | 59.50%¹ | −0.43% | none | ✘ |
 
-**CV(RMSE) 9.3% on a held-out year.** ASHRAE Guideline 14 sets the hourly
-calibration threshold at **30%**; this is roughly a third of it. The figure
-holds at 9.5% even for buildings the model has never seen, so it is not a
-memorisation artefact.
+¹ the cold-start column is *unseen city*, a stricter test than unseen building.
 
-Two things this table settles:
+1381 buildings, 3 seeds. ASHRAE Guideline 14 hourly acceptance is CV(RMSE) ≤ 30%
+**and** NMBE within ±10%; all three forecast horizons pass both, a week ahead
+included. See [METHOD.md](METHOD.md) §1 for why we treat that as an indicative
+benchmark rather than a compliance claim.
 
-**Lags dominate, as predicted.** M0 → M1 is 80.5% → 9.5%: autoregressive
-features remove 88% of the error. This is why the contextual question had to be
-asked in the lag-free task. Here, building attributes are worth 0.24 CV(RMSE)
-points and site identity 0.14 — both negligible. Had the whole study been run
-in this setting, "context adds nothing" would have been an artefact of the
-design rather than a finding about the world.
+### Three things this table settles
 
-**The two tasks answer different questions.** For a metered building the model
-is accurate and context is irrelevant. For an unmetered one, accuracy is much
-lower (43.7% temporal, 59.5% for an unseen city) and building attributes carry
-most of what can be recovered. Reporting either number alone would misrepresent
-the system.
+**The headline needed its horizon.** Quoting 9.26% alone credited the model with
+what persistence already provides: with `lag_1` in hand the task is close to
+nowcasting. The day-ahead figure of 16.03% is the operationally meaningful one —
+it is the horizon procurement, demand response and plant scheduling actually run
+on — and it still sits comfortably inside the standard.
+
+**Recent history substitutes for having seen the building.** At every horizon the
+unseen-building column matches the temporal one almost exactly (9.52 vs 9.26,
+16.21 vs 16.03, 22.16 vs 21.43). Once a building's own recent readings are
+available, whether the model was trained on that building adds essentially
+nothing: the lag features already carry what is building-specific.
+
+**All the difficulty is in having no history at all.** The step from a week ahead
+(21.43%) to no history (43.65%) roughly doubles the error, and doubles it again
+for an unseen city (59.50%). That gap is the whole subject of the cold-start
+study — and it is why the contextual question had to be asked there. In a
+lag-based model, weather and building attributes together move the number by
+less than half a point.
 
 ---
 
@@ -224,7 +232,7 @@ the system.
 | Site identity adds little | 2.8 pts median, consistent direction (9/12) | Moderate — fold spread is large |
 | Weather hurts cross-city transfer | *p* = 0.003, but only 2/12 folds improved | Moderate |
 | Random split is ~2× optimistic | Every model, every rung | High |
-| Metered-building forecast at 9.3% CV(RMSE) | held-out year, 1381 buildings, 3 seeds | High |
+| Forecast passes ASHRAE G14 at 1 h, 24 h and 1 week | held-out year, 1381 buildings, 3 seeds, both criteria | High |
 | Lags remove 88% of the error | M0 80.5% -> M1 9.5% | High |
 | Site-level RS cannot beat 2.8 pts | Follows from M3′ being an upper bound | High (logical, not empirical) |
 

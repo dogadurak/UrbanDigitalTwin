@@ -13,10 +13,10 @@ context actually help?**
 On the Building Data Genome 2 dataset, the answer is **no, by a measured
 margin** — and the interesting part is *how* that was established.
 
-> **The model works.** For a metered building, hourly forecast accuracy is
-> **9.3% CV(RMSE)** on a held-out year — about a third of the 30% threshold
-> ASHRAE Guideline 14 sets for hourly calibration, and it holds at 9.5% for
-> buildings the model has never seen. For an unmetered building, predicting
+> **The model works, and its horizon is stated.** On a held-out year it forecasts
+> at **9.3% CV(RMSE) one hour ahead, 16.0% day-ahead and 21.4% a week ahead** —
+> all three inside ASHRAE Guideline 14's hourly criteria (CV(RMSE) ≤ 30% *and*
+> NMBE within ±10%). For a building with no meter history at all, predicting
 > from attributes and weather alone reaches 43.7%.
 >
 > **And the context question has an answer.** Location encoded perfectly — one-hot site identity, the
