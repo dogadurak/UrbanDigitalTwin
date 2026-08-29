@@ -8,7 +8,7 @@ import { api } from '../api';
  * panel says which protocol produced it. A point estimate without that context
  * would overstate what the model knows about a building it has never metered.
  */
-export default function PredictPanel({ health }) {
+export default function PredictPanel({ health, onBuildingChange }) {
   const [buildings, setBuildings] = useState([]);
   const [buildingId, setBuildingId] = useState('');
   const [temp, setTemp] = useState(28);
@@ -21,7 +21,10 @@ export default function PredictPanel({ health }) {
     api.buildings(300)
       .then((d) => {
         setBuildings(d.buildings || []);
-        if (d.buildings?.length) setBuildingId(d.buildings[0].building_id);
+        if (d.buildings?.length) {
+          setBuildingId(d.buildings[0].building_id);
+          onBuildingChange?.(d.buildings[0].building_id);
+        }
       })
       .catch((e) => setError(e.message));
   }, []);
@@ -65,7 +68,7 @@ export default function PredictPanel({ health }) {
           <select
             className="w-full mt-1 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-[12px] text-slate-200"
             value={buildingId}
-            onChange={(e) => setBuildingId(e.target.value)}
+            onChange={(e) => { setBuildingId(e.target.value); onBuildingChange?.(e.target.value); }}
           >
             {buildings.map((b) => (
               <option key={b.building_id} value={b.building_id}>

@@ -40,6 +40,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from app.fiware_client import publish_ai_insight
 from app.spatial_api import router as spatial_router
 from app.results_api import router as results_router
+from app.explore_api import router as explore_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ai_service")
@@ -58,6 +59,7 @@ app.add_middleware(
 )
 app.include_router(spatial_router, prefix="/api")
 app.include_router(results_router, prefix="/api")
+app.include_router(explore_router, prefix="/api")
 
 MODEL_DIR = "app/models/saved"
 MODEL_PATH = os.path.join(MODEL_DIR, "energy_cold_start.joblib")

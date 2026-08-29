@@ -26,7 +26,7 @@ export default function GlobeMap({ blocks, selected, onSelect }) {
         Promise.resolve(new Cesium.UrlTemplateImageryProvider({
           url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
           credit: new Cesium.Credit('© OpenStreetMap contributors', true),
-          maximumLevel: 8,
+          maximumLevel: 19,
         })),
       ),
       baseLayerPicker: false,

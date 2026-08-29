@@ -33,7 +33,19 @@ export const api = {
   buildings: (limit = 200) => get(`/api/buildings?limit=${limit}`),
   predict: (body) => post('/api/predict', body),
   whatIf: (body) => post('/api/simulate-what-if', body),
+  profile: (id, year = 2017) => get(`/api/explore/building/${id}/profile?year=${year}`),
+  siteSummary: (site, year = 2017) => get(`/api/explore/site/${site}/summary?year=${year}`),
+  euiByUse: () => get('/api/explore/eui-by-use'),
 };
+
+/** Legend stops for the CV(RMSE) colour scale, shared by map and swatches. */
+export const SCORE_STOPS = [
+  { max: 60, color: '#22c55e', label: '< 60%' },
+  { max: 75, color: '#84cc16', label: '60–75%' },
+  { max: 100, color: '#eab308', label: '75–100%' },
+  { max: 150, color: '#f97316', label: '100–150%' },
+  { max: Infinity, color: '#ef4444', label: '> 150%' },
+];
 
 /** Colour scale for CV(RMSE): green = accurate transfer, red = poor. */
 export function scoreColor(cvRmse) {
