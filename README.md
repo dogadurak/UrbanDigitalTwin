@@ -1,143 +1,200 @@
-# 🏙️ Urban Digital Twin - AI-Powered Smart Facility
+# Urban Digital Twin — Building Energy Prediction & Spatial Benchmarking
 
-![Version](https://img.shields.io/badge/version-3.0-blue.svg)
-![React](https://img.shields.io/badge/React-18-cyan.svg)
-![FastAPI](https://img.shields.io/badge/FastAPI-Python-green.svg)
+![Python](https://img.shields.io/badge/Python-3.11-green.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg)
+![PostGIS](https://img.shields.io/badge/PostGIS-15--3.4-blue.svg)
 ![FIWARE](https://img.shields.io/badge/FIWARE-Orion--LD-orange.svg)
-![PostGIS](https://img.shields.io/badge/PostGIS-Database-blue.svg)
+![Tests](https://img.shields.io/badge/tests-63%20passing-brightgreen.svg)
 
-**Urban Digital Twin** is an advanced, real-time 3D simulation and facility management dashboard. It bridges the gap between physical infrastructure and digital monitoring by integrating **FIWARE Context Broker**, **PostGIS Spatial Database**, and a powerful **XGBoost AI Engine** to provide proactive, spatial-aware energy management.
+A cold-start energy model for buildings with no meter history, and a measured
+answer to a question the urban-energy literature usually assumes: **does urban
+context actually help?**
 
----
+On the Building Data Genome 2 dataset, the answer is **no, by a measured
+margin** — and the interesting part is *how* that was established.
 
-> **Status — Sprint 1 (data foundation).** The spatial/remote-sensing layer is
-> being rebuilt on real data. Earlier versions of this README advertised
-> Sentinel-2 NDVI/NDBI, OSM density and Copernicus DEM features; those values
-> were hand-authored constants and a `random.uniform()` mock, not ingested
-> products, and the results derived from them were invalid. They have been
-> removed and documented in [`archive/legacy_v3/`](archive/legacy_v3/README.md).
-> `spatial_features` is intentionally **empty** until real ingestion lands in
-> Sprint 2 — an empty table is honest, a fabricated one is not.
-
-## ✨ Key Features
-
-### 🤖 Energy Forecasting & Anomaly Detection (XGBoost)
-- **Autoregressive forecasting:** XGBoost over calendar and weather features
-  plus 1/24/168-hour lags and 24/168-hour rolling means. Lags are computed
-  per building (`groupby('building_id')`) and rolling means are `.shift(1)`-ed,
-  so no target leaks into its own predictors.
-- **Temporal validation:** trained on 2016, tested on 2017 — never a random split.
-- **Residual-threshold alerting:** anomalies flagged above the 99th percentile
-  of training residuals.
-- **Known issue:** the second detection layer (Isolation Forest) was fitted on
-  residuals from a *lag-free* model (≈160 kWh scale) but is served residuals
-  from the lag-based model (≈25 kWh scale), so in practice it never fires.
-  Scheduled for repair in Sprint 3, when the experiments are rebuilt.
-
-### 🔮 What-If Scenario Simulation
-- **Interactive panel:** sweep outdoor temperature and inspect the projected
-  load delta against the baseline.
-- **Note:** the NDVI / building-density sliders are currently **illustrative
-  only** — they drive model inputs that are not yet backed by real measurements.
-
-### 🛡️ Enterprise-Grade Resilience & Testing
-- **Self-Healing Connections:** Powered by `tenacity`, all interactions between the AI service, PostGIS database, and FIWARE Orion-LD utilize **Exponential Backoff** to survive network blips and microservice restarts without dropping data.
-- **Robust Testing Infrastructure:**
-  - **Backend:** Covered by `pytest` and `pytest-asyncio` for fully automated API endpoint validation.
-  - **Frontend:** Component tests using `vitest` and `@testing-library/react` ensure UI stability.
-
-### 🗺️ GIS & Persistent Time-Series
-- **PostGIS schema ready for real ingestion:** `db/06_spatial_context.sql`
-  defines `building_footprints` (Polygon/4326 + GIST), `sentinel_observations`
-  (product id, acquisition time, cloud cover, CRS, resolution) and a
-  multi-scale `spatial_features` table keyed by
-  `(building_id, buffer_radius_m, observation_time)` with a `source_version`
-  column. The table is empty until Sprint 2 populates it from real products.
-- **Data lineage:** `ingestion_runs` records every ingestion attempt with row
-  counts and status, so each stored value is traceable to a source and a run.
-- **Dynamic Time-Series:** `building_energy_history` maintains rolling histories
-  for lag feature calculation without relying on fragile in-memory buffers.
+> **Headline result.** Location encoded perfectly — one-hot site identity, the
+> upper bound on any satellite or OSM variable computable here — is worth
+> **2.8 CV(RMSE) points**. Real building attributes are worth **21.5**. A 7.7×
+> difference, consistent across 12 of 12 held-out city blocks.
+>
+> Full write-up: **[docs/RESULTS.md](docs/RESULTS.md)**
 
 ---
 
-## 🏗️ System Architecture (Microservices)
+## Why there is no satellite layer in this repository
 
-The project leverages a containerized, event-driven microservices architecture via Docker Compose.
+BDG2 publishes coordinates *to city level*. From Miller et al. (2020), *Sci Data* 7:368:
 
-```mermaid
-graph TD;
-    A[IoT Replay Service] -->|MQTT| B(Mosquitto Broker);
-    B -->|IoT Agent| C(FIWARE Orion-LD);
-    C -->|Context Subscription| D[AI Service FastAPI];
-    D <-->|Read Spatial / Write Lags| E[(PostGIS DB)];
-    D -->|Publish AIInsight| C;
-    C <-->|REST API| F(React / Three.js Frontend);
-```
+> "In all cases, all buildings are within a 25-mile (40-kilometer) radius of the
+> central location of the site or city."
 
-### 🗂️ Core Services
-- **`geotwin-frontend`**: React, Vite, TailwindCSS, React Three Fiber. Runs on port `5173`.
-- **`geotwin-ai-service`**: Python, FastAPI, XGBoost, Scikit-learn, Tenacity. Runs on port `8000`.
-- **`geotwin-orion-ld`**: FIWARE Context Broker for managing NGSI-LD entities. Runs on port `1026`.
-- **`geotwin-postgis`**: PostgreSQL + PostGIS extension for spatial and historical data. Runs on port `5432`.
-- **`geotwin-mosquitto`**: MQTT broker for IoT telemetry ingestion.
+That is 5,027 km² of positional uncertainty — 3.2× Greater London. A 250 m
+buffer, the scale at which NDVI or land-surface temperature is normally sampled,
+is **1/25,600** of it. A value extracted there describes an arbitrary point in a
+metropolitan region, not a building.
+
+So no NDVI, LST, LCZ or GHSL feature is computed anywhere here. An earlier
+version of this project did present such features — they were hand-authored
+Python constants and a `random.uniform()` mock, with the buildings (in
+Washington DC) assigned invented İzmir coordinates. All of it, and every result
+derived from it, is documented and quarantined in
+**[archive/legacy_v3/](archive/legacy_v3/README.md)**.
+
+Instead, the question was reframed into one the data *can* answer: measure the
+ceiling. Since every site-level spatial variable is a lossy compression of site
+identity, measuring site identity bounds all of them at once.
 
 ---
 
-## 🚀 Getting Started
+## What is real, and what is not
 
-### Prerequisites
-- [Docker](https://www.docker.com/) and Docker Compose v2+
+| Component | Status |
+|---|---|
+| BDG2 electricity, weather, metadata | **Real measurements**, 1636 buildings, 2016–17 hourly |
+| Dataset pipeline (22.9 M rows, quality screening, coordinate validation) | **Real**, reproducible, tested |
+| Evaluation harness (4 protocols, ASHRAE G14, bootstrap, power) | **Real**, 63 tests |
+| Served model `energy_cold_start` | **Real**, trained on 1381 buildings, ships with held-out metrics |
+| OSM layer (`/api/gis/*`) | **Real** Overpass data — 2465 buildings, 308 roads, İzmir pilot area |
+| `spatial_features`, `sentinel_observations` | **Empty by design** until an honest source exists |
+| 3D dashboard sensor values (temperature, CO₂, occupancy, HVAC) | **Simulated** — `Math.random()` in `SimulationEngine.js`, a UI demo, not measurements |
 
-### 0. Fetch the dataset
-The BDG2 dataset is a git submodule and is **not** included in a plain clone:
+The last row matters: the frontend is a visualisation shell driven by a
+simulator. It is not connected to the BDG2 analysis and its numbers are not
+data. The science lives in `ai-service/`.
+
+---
+
+## Quick start
+
 ```bash
+# 0. Fetch the dataset (a plain clone does not include it)
 git submodule update --init --recursive
 cd ai-service/data/building-data-genome-project-2
 git lfs pull --include="data/metadata/*,data/weather/*,data/meters/cleaned/electricity_cleaned.csv"
+cd ../../..
+
+# 1. Start the stack. The PostGIS schema applies itself: ./db is mounted into
+#    /docker-entrypoint-initdb.d and every *.sql runs in order 01..07.
+docker compose up -d --build
+
+# 2. Build the dataset  (~23 M rows, partitioned by site)
+docker exec -e PYTHONPATH=/app -w /app geotwin-ai-service \
+  python -m app.data_engineering.build_dataset
+
+# 3. Load building reference data into PostGIS
+docker exec -e PYTHONPATH=/app -w /app geotwin-ai-service \
+  python -m app.data_engineering.load_buildings_to_db
+
+# 4. Run the experiment  (~1 h: 5 models x 4 protocols x 19 folds x 3 seeds)
+docker exec -e PYTHONPATH=/app -w /app geotwin-ai-service \
+  python -m app.experiments.run_ladder --task cold_start --rows-per-building 800 --seeds 3
+docker exec -e PYTHONPATH=/app -w /app geotwin-ai-service \
+  python -m app.experiments.analyse_ladder --run results/ladder/cold_start
+
+# 5. Train the served model
+docker exec -e PYTHONPATH=/app -w /app geotwin-ai-service \
+  python -m app.experiments.train_production --spec M3_building
 ```
 
-### 1. Bootstrapping the Environment
-Simply start the entire microservices cluster from the root directory:
-```bash
-docker-compose up -d --build
-```
-*Wait ~30 seconds for the databases and FIWARE to fully initialize.*
-
-The PostGIS schema is applied automatically on first start: `./db` is mounted
-into `/docker-entrypoint-initdb.d`, and Postgres runs every `*.sql` there in
-lexical order (`01_init` → `06_spatial_context`). No manual `psql` step is
-needed. To re-apply from scratch, drop the volume: `docker compose down -v`.
-
-### 2. Initialize FIWARE Subscriptions
-```bash
-# Create FIWARE NGSI-LD Subscriptions for the AI service
-docker exec -it geotwin-ai-service python app/setup_subscription.py
-```
-
-### 3. Start the Live Simulation (Replay Service)
-To simulate live sensor data flowing into the digital twin (with injected synthetic anomalies):
-```bash
-docker exec -it geotwin-ai-service python app/scripts/replay_service.py
-```
-
-### 4. Access the Dashboard
-Open your browser and navigate to:
-**`http://localhost:5173`**
+Dashboard: `http://localhost:5173` · API: `http://localhost:8000/docs`
 
 ---
 
-## 🧪 Running Automated Tests
+## The API
 
-**Backend (Pytest):**
 ```bash
-docker exec -e PYTHONPATH=/app geotwin-ai-service pytest tests/
+curl localhost:8000/api/health
+```
+Reports which model is loaded, how many buildings it was trained on, its
+**held-out** CV(RMSE) and the protocol that produced it.
+
+```bash
+curl -X POST localhost:8000/api/predict -H 'Content-Type: application/json' -d '{
+  "building_id":"Rat_office_Adele","timestamp":"2017-07-15T15:00:00",
+  "airTemperature":31.0,"dewTemperature":21.0}'
+```
+```json
+{"expected_energy_kwh": 490.17,
+ "expected_band_1cvrmse": {"lo": 119.36, "hi": 860.98},
+ "band_basis": {"cv_rmse_pct": 75.65, "protocol": "leave_block_out"}}
 ```
 
-**Frontend (Vitest):**
-```bash
-docker exec geotwin-frontend npx vitest run
-```
+The band is the model's demonstrated out-of-sample error, not a percentile of
+its own training residuals. `/api/detect-anomalies` flags deviations as
+multiples of that band, so "anomaly" means "outside the error this model
+actually showed on cities it had never seen". Unknown building → `404`, no
+model → `503`; failures are failures, not `200` with an error string.
 
 ---
 
-*Built with passion for the future of Smart Facilities and PropTech.* 🚀
+## Method notes
+
+**Two tasks.** Persistence alone explains a median 88% of hourly variance
+(measured over 1381 buildings), so in a lag-based model everything else competes
+for a tenth of the variance. Contextual claims are therefore tested only in the
+lag-free **cold-start** task, where a building has no history.
+
+**Four protocols, reported side by side.** Random shuffling of hourly rows makes
+models look roughly twice as good as they are on an unseen city (M2: 81.4% →
+157.8%). The gap is a result, not a nuisance.
+
+**Blocks, not sites.** Sites closer than the dataset's own 40 km uncertainty are
+not independent: Ottawa is two "sites", London is three. Merging gives **12**
+blocks from 15 coordinates. Training on two London sites while testing on a
+third does not test transfer to an unseen city.
+
+**A leakage guard, from a real failure.** `app/data_engineering/leakage.py`
+refuses feature sets that identify buildings, and reports what fraction a set
+pins down uniquely. Run against the archived V3 feature set it returns **1.0** —
+a perfect building index wearing geoscience labels.
+
+**Honest power.** With 12 blocks the minimum detectable effect is ~24 CV(RMSE)
+points. Where a contrast falls below that, the report says so instead of
+claiming a null result.
+
+---
+
+## Layout
+
+```
+ai-service/app/
+  data_engineering/   dataset build, quality screening, coordinate validation,
+                      cohorts + 40 km spatial blocking, leakage guard
+  evaluation/         metrics (ASHRAE G14), protocols, bootstrap/power, harness
+  experiments/        the M0–M3' ladder, analysis, production training
+  main.py             serving API
+db/                   01..07, applied in order on first start
+docs/                 RESULTS.md, DATA_QUALITY.md, QGIS_VALIDATION_WORKFLOW.md
+archive/legacy_v3/    quarantined pre-Sprint-1 work, with the defects documented
+backend/, frontend/   Node + React visualisation shell (simulated telemetry)
+```
+
+## Tests
+
+```bash
+docker exec -e PYTHONPATH=/app -w /app geotwin-ai-service pytest tests/ -q   # 63 passed
+```
+No database or dataset download required — every case is built from synthetic
+frames, including the coordinate sign-error and identity-leakage cases.
+
+---
+
+## Known limitations
+
+- **n = 12** for every site-level conclusion. BDG2 publishes 15 coordinates for 1636 buildings.
+- **Electricity only.** Chilled water and steam are unpulled LFS pointers, so cooling load — where a thermal-context hypothesis is most plausible — is untested.
+- **CV(RMSE) is unstable for very small consumers** (see the `Lamb` fold, [docs/RESULTS.md](docs/RESULTS.md) §3).
+- **No anomaly benchmark.** The cleaned meter files already had anomalies removed by the dataset authors, so a detector trained on them is self-defeating.
+- **The dashboard is a simulation.** See the table above.
+
+## Next
+
+Per-building coordinates are the precondition for any real spatial claim. NYC
+Local Law 84 joins to PLUTO on BBL, giving true geometry, floors, year, use and
+measured EUI for tens of thousands of buildings — where a 250 m buffer means
+something. The harness was built to move there unchanged.
+
+---
+
+**Data:** [Building Data Genome Project 2](https://github.com/buds-lab/building-data-genome-project-2) (Miller et al. 2020, CC BY 4.0) · OpenStreetMap contributors (ODbL) · Open-Meteo
