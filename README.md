@@ -10,16 +10,35 @@
 
 ---
 
-## ✨ Key Features (V3 Updates)
+> **Status — Sprint 1 (data foundation).** The spatial/remote-sensing layer is
+> being rebuilt on real data. Earlier versions of this README advertised
+> Sentinel-2 NDVI/NDBI, OSM density and Copernicus DEM features; those values
+> were hand-authored constants and a `random.uniform()` mock, not ingested
+> products, and the results derived from them were invalid. They have been
+> removed and documented in [`archive/legacy_v3/`](archive/legacy_v3/README.md).
+> `spatial_features` is intentionally **empty** until real ingestion lands in
+> Sprint 2 — an empty table is honest, a fabricated one is not.
 
-### 🤖 AI-Powered Spatial Anomaly Detection (XGBoost V3)
-- **Context-Aware AI:** The prediction engine evaluates 17 real-time and spatial features (including historical 24/168-hour lags, Building Density, NDVI, NDBI, Elevation, and Road Density).
-- **Dual-Layer Detection:** Uses XGBoost for energy prediction and Isolation Forest to detect complex multidimensional anomalies.
-- **Explainable AI (XAI):** Anomalies aren't just detected; the system explains *why* they happened (e.g., "Urban heat island effect exacerbated by low greenery").
+## ✨ Key Features
+
+### 🤖 Energy Forecasting & Anomaly Detection (XGBoost)
+- **Autoregressive forecasting:** XGBoost over calendar and weather features
+  plus 1/24/168-hour lags and 24/168-hour rolling means. Lags are computed
+  per building (`groupby('building_id')`) and rolling means are `.shift(1)`-ed,
+  so no target leaks into its own predictors.
+- **Temporal validation:** trained on 2016, tested on 2017 — never a random split.
+- **Residual-threshold alerting:** anomalies flagged above the 99th percentile
+  of training residuals.
+- **Known issue:** the second detection layer (Isolation Forest) was fitted on
+  residuals from a *lag-free* model (≈160 kWh scale) but is served residuals
+  from the lag-based model (≈25 kWh scale), so in practice it never fires.
+  Scheduled for repair in Sprint 3, when the experiments are rebuilt.
 
 ### 🔮 What-If Scenario Simulation
-- **Interactive AI Panel:** Tweak external parameters like Outdoor Temperature, Greenery Ratio (NDVI), and Building Density via the dashboard.
-- **Real-time Projections:** The AI service instantly calculates the expected power load delta versus the baseline, empowering urban planners and facility managers to test climate and architectural interventions.
+- **Interactive panel:** sweep outdoor temperature and inspect the projected
+  load delta against the baseline.
+- **Note:** the NDVI / building-density sliders are currently **illustrative
+  only** — they drive model inputs that are not yet backed by real measurements.
 
 ### 🛡️ Enterprise-Grade Resilience & Testing
 - **Self-Healing Connections:** Powered by `tenacity`, all interactions between the AI service, PostGIS database, and FIWARE Orion-LD utilize **Exponential Backoff** to survive network blips and microservice restarts without dropping data.
@@ -28,8 +47,16 @@
   - **Frontend:** Component tests using `vitest` and `@testing-library/react` ensure UI stability.
 
 ### 🗺️ GIS & Persistent Time-Series
-- **PostGIS Integration:** Spatial features (elevation, slope, vegetation indices) are persistently stored and queried per building.
-- **Dynamic Time-Series:** `building_energy_history` tables maintain rolling histories for dynamic lag feature calculation without relying on fragile in-memory buffers.
+- **PostGIS schema ready for real ingestion:** `db/06_spatial_context.sql`
+  defines `building_footprints` (Polygon/4326 + GIST), `sentinel_observations`
+  (product id, acquisition time, cloud cover, CRS, resolution) and a
+  multi-scale `spatial_features` table keyed by
+  `(building_id, buffer_radius_m, observation_time)` with a `source_version`
+  column. The table is empty until Sprint 2 populates it from real products.
+- **Data lineage:** `ingestion_runs` records every ingestion attempt with row
+  counts and status, so each stored value is traceable to a source and a run.
+- **Dynamic Time-Series:** `building_energy_history` maintains rolling histories
+  for lag feature calculation without relying on fragile in-memory buffers.
 
 ---
 

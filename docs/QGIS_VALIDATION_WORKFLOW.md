@@ -1,5 +1,20 @@
 # QGIS Validation Workflow for GeoTwin V3
 
+> **Status: PLANNED, not yet executable.**
+>
+> This workflow describes the validation procedure for the *real* spatial
+> ingestion pipeline, which lands in Sprint 2. The scripts it names
+> (`osm_ingestion.py`, `sentinel_ingestion.py`) do not exist yet, and the
+> layers `sentinel_observations` / `spatial_features` are created but empty.
+>
+> A previous revision of this document implied the pipeline was already
+> running and validated. It was not: the values in `spatial_features` were
+> hand-authored constants, and `dem_ingestion.py` returned
+> `45.2 + random.uniform(-1, 1)`. Both have been removed — see
+> [`archive/legacy_v3/`](../archive/legacy_v3/README.md).
+>
+> Keep this document as the acceptance checklist for Sprint 2.
+
 This document outlines the steps to visually validate the automated Geomatics pipeline (Experiment A) using QGIS. Since the Spatial Context Engine dynamically computes multi-scale features (50m, 100m, 250m) and stores them in PostGIS, QGIS is the perfect tool to ensure geometric accuracy and temporal alignment.
 
 ## 1. Connect QGIS to PostGIS
@@ -41,10 +56,15 @@ This document outlines the steps to visually validate the automated Geomatics pi
 - Use the **Identify Features** tool to click inside the buffers and compare the raw pixel values to the `ndvi_current` and `ndmi_current` stored in `spatial_features`.
 - Ensure the `observation_time` matches the acquisition date of the TIFF.
 
-### D. Copernicus DEM Validation
-- Load the Copernicus DEM 30m raster (or SRTM) for the Izmir region.
-- Compare the elevation under the building footprint with the `elevation` and `slope` columns in the `spatial_features` table. (Currently tested as ~44m elevation, ~5.4° slope).
+### D. Terrain (deferred)
+- Terrain (`elevation`, `slope`) is **not** part of the Sprint 2 feature set.
+  For the flat urban campuses in BDG2 it has no causal link to energy demand,
+  and in the archived V3 run it acted purely as a building-ID proxy — it was
+  the second-highest ranked feature precisely because it took one constant
+  value per building.
+- Revisit only if a DSM-derived variable with a physical mechanism is needed
+  (e.g. sky view factor for the urban canyon effect).
 
 ## 4. Conclusion
 
-By completing this workflow, you confirm that the automated Python ingestion scripts (`osm_ingestion.py`, `sentinel_ingestion.py`, `dem_ingestion.py`) are correctly mapping real-world physical properties into the PostgreSQL database, which the AI models will now consume.
+Completing this workflow is the **acceptance criterion for Sprint 2**: it confirms that the ingestion scripts (`osm_ingestion.py`, `sentinel_ingestion.py` — to be written) map real-world physical properties into PostGIS with correct geometry, CRS and temporal alignment, before any model is allowed to consume them.
