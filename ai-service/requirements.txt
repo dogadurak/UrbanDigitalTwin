@@ -11,3 +11,4 @@ tenacity==8.4.1
 pytest
 pytest-asyncio
 httpx
+pyarrow==17.0.0
