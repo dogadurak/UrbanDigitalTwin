@@ -61,6 +61,14 @@ graph TD;
 ### Prerequisites
 - [Docker](https://www.docker.com/) and Docker Compose v2+
 
+### 0. Fetch the dataset
+The BDG2 dataset is a git submodule and is **not** included in a plain clone:
+```bash
+git submodule update --init --recursive
+cd ai-service/data/building-data-genome-project-2
+git lfs pull --include="data/metadata/*,data/weather/*,data/meters/cleaned/electricity_cleaned.csv"
+```
+
 ### 1. Bootstrapping the Environment
 Simply start the entire microservices cluster from the root directory:
 ```bash
@@ -68,12 +76,13 @@ docker-compose up -d --build
 ```
 *Wait ~30 seconds for the databases and FIWARE to fully initialize.*
 
-### 2. Initialize the Database and Subscriptions
-Once the containers are up, initialize the spatial database and FIWARE subscriptions:
-```bash
-# Apply PostGIS schema and seed spatial data
-docker exec -it geotwin-postgis psql -U geotwin_user -d geotwin_db -f /docker-entrypoint-initdb.d/init_db.sql
+The PostGIS schema is applied automatically on first start: `./db` is mounted
+into `/docker-entrypoint-initdb.d`, and Postgres runs every `*.sql` there in
+lexical order (`01_init` → `06_spatial_context`). No manual `psql` step is
+needed. To re-apply from scratch, drop the volume: `docker compose down -v`.
 
+### 2. Initialize FIWARE Subscriptions
+```bash
 # Create FIWARE NGSI-LD Subscriptions for the AI service
 docker exec -it geotwin-ai-service python app/setup_subscription.py
 ```

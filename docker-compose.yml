@@ -12,7 +12,12 @@ services:
       - "5433:5432"
     volumes:
       - postgis_data:/var/lib/postgresql/data
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      # Mount the whole schema directory: Postgres runs every *.sql in
+      # lexical order, so the 01_.. 06_ prefixes define the execution order.
+      # Mounting a single file (the previous behaviour) silently skipped
+      # building_energy_history, ai_insights, the ingestion tables and the
+      # spatial context schema on a fresh volume.
+      - ./db:/docker-entrypoint-initdb.d:ro
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U geotwin_user -d geotwin_db"]

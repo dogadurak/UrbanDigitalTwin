@@ -54,20 +54,20 @@ CREATE TABLE IF NOT EXISTS satellite_observations (
 );
 
 -- Mekansal indeksleme performans artışı için
-CREATE INDEX idx_buildings_geom ON buildings USING GIST (geom);
-CREATE INDEX idx_rooms_geom ON rooms USING GIST (geom);
-CREATE INDEX idx_sensors_geom ON sensors USING GIST (geom);
-CREATE INDEX idx_satellite_obs_loc ON satellite_observations USING GIST (location);
+CREATE INDEX IF NOT EXISTS idx_buildings_geom ON buildings USING GIST (geom);
+CREATE INDEX IF NOT EXISTS idx_rooms_geom ON rooms USING GIST (geom);
+CREATE INDEX IF NOT EXISTS idx_sensors_geom ON sensors USING GIST (geom);
+CREATE INDEX IF NOT EXISTS idx_satellite_obs_loc ON satellite_observations USING GIST (location);
 
 -- Pilot Veri Ekleme (Örnek Entity Linking Hiyerarşisi)
 INSERT INTO buildings (id, name, description, geom) 
-VALUES ('BLDG_001', 'İzmir Pilot Bina (Demonstration)', 'İzmir bölgesinde temsili bina (buildingSMART IFC)', ST_SetSRID(ST_GeomFromText('POLYGON((27.1428 38.4237, 27.1429 38.4237, 27.1429 38.4238, 27.1428 38.4238, 27.1428 38.4237))'), 4326));
+VALUES ('BLDG_001', 'İzmir Pilot Bina (Demonstration)', 'İzmir bölgesinde temsili bina (buildingSMART IFC)', ST_SetSRID(ST_GeomFromText('POLYGON((27.1428 38.4237, 27.1429 38.4237, 27.1429 38.4238, 27.1428 38.4238, 27.1428 38.4237))'), 4326)) ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO floors (id, building_id, name, level) 
-VALUES ('FLR_02', 'BLDG_001', 'Kat 2', 2);
+VALUES ('FLR_02', 'BLDG_001', 'Kat 2', 2) ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO rooms (id, floor_id, name, type) 
-VALUES ('ROOM_204', 'FLR_02', 'Sunucu Odası', 'SERVER_ROOM');
+VALUES ('ROOM_204', 'FLR_02', 'Sunucu Odası', 'SERVER_ROOM') ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO sensors (id, room_id, type, unit, geom) 
-VALUES ('SENSOR_204_TEMP', 'ROOM_204', 'TEMPERATURE', 'Celsius', ST_SetSRID(ST_MakePoint(27.14281, 38.42371), 4326));
+VALUES ('SENSOR_204_TEMP', 'ROOM_204', 'TEMPERATURE', 'Celsius', ST_SetSRID(ST_MakePoint(27.14281, 38.42371), 4326)) ON CONFLICT (id) DO NOTHING;
