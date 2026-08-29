@@ -1,0 +1,4 @@
+[submodule "ai-service/data/building-data-genome-project-2"]
+	path = ai-service/data/building-data-genome-project-2
+	url = https://github.com/buds-lab/building-data-genome-project-2.git
+	branch = master
