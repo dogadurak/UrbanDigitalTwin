@@ -41,14 +41,25 @@ Findings: **[docs/RESULTS.md](docs/RESULTS.md)** · What each choice rests on:
 
 Four questions in sequence, one tab each.
 
-### 1. How much does it consume?
+### 1. How much does it consume?  ·  *Monitoring*
 
-Measured load for any building — average day, weekday pattern, seasonal shape —
-with the model's prediction drawn over it. The model is given **no past reading**
-for that building, so the two curves are a genuine out-of-sample comparison
-rather than a fit replayed against its own training data.
+`explore_api.py` serves any building's real hourly series, aggregated three ways
+— average day, weekday pattern, monthly shape — with the model's prediction
+drawn over it.
 
-### 2. Is it abnormal?
+![Measured against predicted](docs/img/fig-load-profile.png)
+
+The model is given **no past reading** for this building, so the two curves are a
+genuine out-of-sample comparison rather than a fit replayed against its own
+training data. It picks up the diurnal shape from building type, size and
+weather — the 06:00 rise, the midday peak — and then misses what is specific to
+this building: it over-predicts the afternoon and does not see the sharp 17:00
+drop. That gap *is* the cold-start problem, drawn.
+
+**What the module gives you:** measured mean, energy intensity, hours of data,
+and this building's own CV(RMSE) and NMBE against the served model.
+
+### 2. Is it abnormal?  ·  *Deviation scanning*
 
 A baseline is fitted to the building's own 2016 from calendar and weather alone,
 then applied to 2017 — the whole-building approach of **IPMVP Option C / ASHRAE
@@ -65,7 +76,7 @@ Two guards, both added after the first version produced nonsense:
   reporting year exceeds 30% is unfit for M&V — and the panel says the building
   needs re-baselining instead of inventing findings.
 
-### 3. What will it consume?
+### 3. What will it consume?  ·  *Forecasting*
 
 Accuracy is reported **as a curve, not a number** (figure at the top), because a
 forecast figure without its horizon is not a result:
@@ -83,14 +94,18 @@ Lags are restricted to what is legally available at each horizon — using last
 hour's reading to predict a week ahead would be leakage, and three tests assert
 it cannot happen.
 
-### 4. What should we do about it?
+### 4. What should we do about it?  ·  *Screening and diagnosis*
 
 A building reaches the shortlist only when **two independent peer tests agree**:
 its intensity against the median for its use type, and its consumption against
 what the model predicts for a building of that type, size and age. Requiring
 both cuts the list from 249 to 79 — every name costs someone a site visit.
 
-![What each addition is worth](docs/img/fig-ladder.png)
+![Screening distribution](docs/img/fig-screening.png)
+
+Most of the portfolio sits near its peer median; the tail is what an auditor
+should see. The threshold is adjustable in the interface and the counts move
+with it.
 
 Then the diagnosis. Load *shape* is compared against the same peer group,
 because shape says **when** the energy goes, which annual totals cannot:
@@ -162,6 +177,14 @@ measuring site identity bounds all of them at once.
 | Perfect site identity | **2.8 points** |
 | Building attributes (area, use, age) | **21.5 points** |
 
+![Measured intensity by use](docs/img/fig-eui-by-use.png)
+
+The reason is visible in the data: what a building is *for* spans a 13× range in
+measured intensity, in the order building physics predicts — parking lowest,
+healthcare highest. Location, across 12 cities, carries nothing comparable.
+
+![What each addition is worth](docs/img/fig-ladder.png)
+
 Building attributes are worth **7.7× more** than location encoded perfectly, in
 **12 of 12** held-out cities (*p* < 0.001). No satellite layer computable on
 this dataset could exceed 2.8 points. That is a negative result stated as a
@@ -183,6 +206,54 @@ model: shuffling `log_sqm` costs 180 CV(RMSE) points, every weather column under
   coordinate-bearing sites become **12 independent blocks**.
 - **197 of 1,578 meter series** fail quality screening — stuck meters, outages,
   thin coverage.
+
+---
+
+## How the modules fit together
+
+```
+BDG2  ──►  build_dataset ──►  Parquet, partitioned by site
+23 M rows                     22.9 M rows · 1381 buildings · 18 sites
+                                    │
+        ┌───────────────────────────┼───────────────────────────┐
+        ▼                           ▼                           ▼
+  evaluation/                 experiments/                app/*.py
+  4 protocols                 M0–M3' ladder               screening
+  ASHRAE G14                  horizon sweep               diagnostics
+  bootstrap + power           production model            anomaly
+        │                           │                           │
+        └────────► results/ ◄───────┘                           │
+                      │                                          │
+                      ▼                                          ▼
+              make_figures                                 main.py (API)
+              docs/img/*.png                               dashboard
+```
+
+| Module | File | What it decides | Grounded in |
+|---|---|---|---|
+| **Dataset** | `data_engineering/build_dataset.py` | which buildings are modellable at all | quality screening, coordinate validation |
+| **Leakage guard** | `data_engineering/leakage.py` | whether a feature set is secretly a building index | written from a real failure in this repo |
+| **Cohorts** | `data_engineering/cohorts.py` | what counts as an independent city | BDG2's own 40 km positional bound |
+| **Evaluation** | `evaluation/` | what a number is allowed to claim | ASHRAE Guideline 14, Wadoux et al. 2021 |
+| **Ladder** | `experiments/ladder.py` | what each feature group is worth | M3′ identity control |
+| **Screening** | `screening.py` | which buildings to inspect first | ENERGY STAR peer-group logic |
+| **Diagnostics** | `diagnostics.py` | what to check on a given building | load-shape analysis against peers |
+| **Anomaly** | `anomaly.py` | when a building stopped behaving normally | IPMVP Option C baseline |
+
+Three properties hold across all of them, and they are the point of the project
+rather than incidental:
+
+**Nothing is generated for display.** Every number on the dashboard traces to a
+file in `results/` or a live model call. When an experiment has not been run the
+endpoint returns 404 with the command to run, rather than a plausible value.
+
+**Every claim carries its own limit.** Predictions ship with the protocol that
+produced their error band. Screening states that high consumption is not proof of
+waste. Diagnoses list what would refute them. The anomaly scan refuses to list
+events when its baseline no longer fits.
+
+**A negative result is reported as a result.** The urban-context finding is the
+central one, and it says the thing the project set out to add does not help.
 
 ---
 

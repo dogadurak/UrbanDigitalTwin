@@ -119,7 +119,14 @@ case where location is all you know.
 
 ![Per-city transfer](img/fig-cities.png)
 
-*Figures are rendered from the result files by `app/experiments/make_figures.py`.*
+![Measured intensity by use](img/fig-eui-by-use.png)
+
+![Screening distribution](img/fig-screening.png)
+
+![Measured against predicted](img/fig-load-profile.png)
+
+*Figures are rendered from the result files and the dataset by
+`app/experiments/make_figures.py`, never transcribed.*
 
 
 1210 buildings, 12 blocks, 968,000 rows, 3 seeds, 4 protocols.

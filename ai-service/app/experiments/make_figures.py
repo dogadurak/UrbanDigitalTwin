@@ -198,13 +198,161 @@ def fig_cities(out):
     return out_path
 
 
+
+
+def fig_eui_by_use(out):
+    """Measured intensity by building use -- why attributes beat location."""
+    from app import screening as S
+
+    b = S._load_year(2017)
+    b = b[(b["sqm"] > 0) & (b["n_hours"] >= S.MIN_HOURS)].copy()
+    b["eui"] = b["mean_kwh"] * 1000.0 / b["sqm"]
+    g = (b.groupby("use")["eui"].agg(["size", "median"])
+         .rename(columns={"size": "n"}))
+    g = g[g["n"] >= 10].sort_values("median")
+    if g.empty:
+        return None
+
+    fig, ax = plt.subplots(figsize=(6.8, 3.8))
+    norm = g["median"] / g["median"].max()
+    colours = [plt.cm.YlOrRd(0.25 + 0.6 * v) for v in norm]
+    bars = ax.barh(range(len(g)), g["median"], color=colours, height=0.68)
+    for i, (v, n) in enumerate(zip(g["median"], g["n"])):
+        ax.text(v + 0.3, i, "{:.1f}   n={}".format(v, int(n)),
+                va="center", fontsize=8, color=MUTED)
+    ax.set_yticks(range(len(g)))
+    ax.set_yticklabels(g.index)
+    ax.set_xlabel("median energy intensity, Wh/m² per hour")
+    ax.set_xlim(0, g["median"].max() * 1.32)
+    spread = g["median"].max() / g["median"].min()
+    ax.set_title("Measured intensity spans {:.0f}x across building uses\n"
+                 "in the order building physics predicts".format(spread),
+                 fontsize=10, loc="left", weight="bold")
+    ax.grid(axis="x", color=GRID, lw=0.8)
+    ax.set_axisbelow(True)
+    fig.tight_layout()
+    path = os.path.join(out, "fig-eui-by-use.png")
+    fig.savefig(path, bbox_inches="tight")
+    plt.close(fig)
+    return path
+
+
+def fig_load_profile(out, building_id="Rat_office_Adele", site_id="Rat"):
+    """A real building's measured day against the cold-start prediction."""
+    import numpy as np
+
+    energy = os.path.join("data", "processed", "energy",
+                          "site_id={}".format(site_id), "part.parquet")
+    if not os.path.exists(energy):
+        return None
+
+    cols = ["building_id", "meter_reading", "hour", "day_of_week", "month",
+            "is_weekend", "year", "airTemperature", "dewTemperature",
+            "windSpeed", "cloudCoverage", "sqm", "primaryspaceusage",
+            "yearbuilt", "numberoffloors"]
+    df = pd.read_parquet(energy, columns=cols)
+    df = df[(df["building_id"] == building_id) & (df["year"] == 2017)]
+    if df.empty:
+        return None
+
+    predicted = None
+    try:
+        import json as _json
+
+        import joblib
+
+        from app.experiments import ladder as L
+
+        model_dir = os.path.join("app", "models", "saved")
+        model = joblib.load(os.path.join(model_dir, "energy_cold_start.joblib"))
+        with open(os.path.join(model_dir, "energy_cold_start_metadata.json"),
+                  encoding="utf-8") as fh:
+            meta = _json.load(fh)
+        feat = L.add_derived(df)
+        parts = []
+        for col in meta["feature_columns"]:
+            if col in feat.columns:
+                parts.append(feat[col].astype("float32").rename(col))
+            elif "=" in col:
+                field, value = col.split("=", 1)
+                parts.append((feat[field].astype(str) == value).astype("float32").rename(col))
+            else:
+                parts.append(pd.Series(np.nan, index=feat.index, name=col, dtype="float32"))
+        predicted = np.expm1(model.predict(pd.concat(parts, axis=1)))
+    except Exception:
+        predicted = None
+
+    df = df.copy()
+    if predicted is not None:
+        df["predicted"] = predicted
+    by_hour = df.groupby("hour").agg(measured=("meter_reading", "mean"))
+    if "predicted" in df:
+        by_hour["predicted"] = df.groupby("hour")["predicted"].mean()
+
+    fig, ax = plt.subplots(figsize=(6.6, 3.4))
+    ax.plot(by_hour.index, by_hour["measured"], color=ACCENT, lw=2.2, label="measured")
+    if "predicted" in by_hour:
+        ax.plot(by_hour.index, by_hour["predicted"], color=WARN, lw=2.0, ls="--",
+                label="predicted, no meter history")
+    ax.set_xlabel("hour of day")
+    ax.set_ylabel("mean demand, kWh")
+    ax.set_xticks(range(0, 24, 3))
+    ax.set_title("{}\naverage 2017 day: the model sees no past reading for "
+                 "this building".format(building_id), fontsize=10, loc="left",
+                 weight="bold")
+    ax.legend(frameon=False, fontsize=8)
+    ax.grid(color=GRID, lw=0.8)
+    ax.set_axisbelow(True)
+    fig.tight_layout()
+    path = os.path.join(out, "fig-load-profile.png")
+    fig.savefig(path, bbox_inches="tight")
+    plt.close(fig)
+    return path
+
+
+def fig_screening(out):
+    """How the portfolio distributes against its peer medians, and what is flagged."""
+    import numpy as np
+
+    from app import screening as S
+
+    table, summary = S.screen(2017)
+    ratios = table["peer_ratio"].replace([np.inf, -np.inf], np.nan).dropna()
+    ratios = ratios[ratios < 8]
+    if ratios.empty:
+        return None
+
+    fig, ax = plt.subplots(figsize=(6.8, 3.4))
+    ax.hist(ratios, bins=60, color=GRID, edgecolor="white", linewidth=0.4)
+    ax.axvline(S.PEER_RATIO_THRESHOLD, color=WARN, ls="--", lw=1.4)
+    ax.text(S.PEER_RATIO_THRESHOLD + 0.08, ax.get_ylim()[1] * 0.86,
+            "screening threshold\n{:.0f}x the median for its use".format(
+                S.PEER_RATIO_THRESHOLD),
+            fontsize=8, color=WARN)
+    ax.set_xlabel("measured intensity ÷ median for the same building use")
+    ax.set_ylabel("buildings")
+    ax.set_title("{} of {} buildings flagged, {} GWh/yr above peer level\n"
+                 "both peer tests must agree before a building is listed".format(
+                     summary["n_flagged"], summary["n_screened"],
+                     summary["excess_annual_gwh"]),
+                 fontsize=10, loc="left", weight="bold")
+    ax.grid(axis="y", color=GRID, lw=0.8)
+    ax.set_axisbelow(True)
+    fig.tight_layout()
+    path = os.path.join(out, "fig-screening.png")
+    fig.savefig(path, bbox_inches="tight")
+    plt.close(fig)
+    return path
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=os.path.join("docs", "img"))
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
 
-    for fn in (fig_horizon, fig_ladder, fig_cities):
+    for fn in (fig_horizon, fig_ladder, fig_cities,
+               fig_eui_by_use, fig_load_profile, fig_screening):
         path = fn(args.out)
         print("  {}".format(path) if path else "  {}: skipped (no results)".format(fn.__name__))
 
