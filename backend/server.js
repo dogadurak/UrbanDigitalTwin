@@ -135,8 +135,12 @@ const PORT = 3001;
 server.listen(PORT, async () => {
   console.log(`[BACKEND] UrbanDigitalTwin server running on port ${PORT}`);
   // Wait a few seconds for Orion-LD to be fully up, then setup subscription
-  setTimeout(async () => {
-    // In local dev from Windows to docker container, host.docker.internal points back to host
-    await fiwareGateway.setupSubscription('http://host.docker.internal:3001/api/fiware/notify');
-  }, 5000);
+  if (String(process.env.FIWARE_ENABLED ?? 'false').toLowerCase() === 'true') {
+    // Give Orion-LD a moment to come up before registering the subscription.
+    setTimeout(async () => {
+      await fiwareGateway.setupSubscription('http://host.docker.internal:3001/api/fiware/notify');
+    }, 5000);
+  } else {
+    console.log('[BACKEND] FIWARE disabled (set FIWARE_ENABLED=true with the `fiware` compose profile)');
+  }
 });

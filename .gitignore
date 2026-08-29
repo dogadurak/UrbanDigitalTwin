@@ -42,3 +42,7 @@ results/
 Thumbs.db
 .idea/
 .vscode/
+
+# --- Derived model artefacts (regenerate: app.experiments.train_production) ---
+# The served model and its metadata are tracked; nothing else in saved/ is.
+ai-service/results/

@@ -1,14 +1,13 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 import cesium from 'vite-plugin-cesium';
-import { viteStaticCopy } from 'vite-plugin-static-copy';
 
-// https://vite.dev/config/
+// vite-plugin-cesium already copies Cesium's Assets/Workers/Widgets into the
+// build and sets CESIUM_BASE_URL, so no separate static-copy step is needed.
 export default defineConfig({
-  plugins: [react(), cesium(), viteStaticCopy({
-    targets: [{
-      src: 'node_modules/cesium/Build/Cesium',
-      dest: ''
-    }]
-  })],
-})
+  plugins: [react(), cesium()],
+  server: {
+    host: true,
+    port: 5173,
+  },
+});

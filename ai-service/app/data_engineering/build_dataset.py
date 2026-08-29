@@ -32,7 +32,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
 from datetime import datetime, timezone
 
 import numpy as np
@@ -60,13 +59,7 @@ TRAIN_YEAR = 2016
 TEST_YEAR = 2017
 
 
-def _git_sha():
-    try:
-        return subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL, text=True
-        ).strip()
-    except Exception:
-        return "unknown"
+from app.provenance import git_sha as _git_sha  # noqa: E402
 
 
 def load_meter(meter="electricity"):

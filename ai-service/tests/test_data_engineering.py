@@ -230,3 +230,49 @@ def test_building_mean_r2_detects_scale_dominance():
     df = _panel()
     r2 = leakage.building_mean_r2(df, "meter_reading")
     assert r2 > 0.9
+
+
+# --------------------------------------------------------------------------
+# Forecast horizon: which lags a model may legally see
+# --------------------------------------------------------------------------
+
+def test_horizon_restricts_available_lags():
+    """A week-ahead forecast cannot use last hour's meter reading.
+
+    Quoting a 1-hour-ahead accuracy as a general forecast figure overstates the
+    system; using lag_1 to predict a week ahead would be outright leakage.
+    """
+    from app.experiments.ladder import lag_features_for_horizon
+
+    assert "energy_lag_1" in lag_features_for_horizon(1)
+    assert "energy_lag_1" not in lag_features_for_horizon(24)
+    assert "energy_lag_24" in lag_features_for_horizon(24)
+    assert "energy_lag_24" not in lag_features_for_horizon(168)
+    assert "energy_lag_168" in lag_features_for_horizon(168)
+
+
+def test_longer_horizon_never_gains_features():
+    from app.experiments.ladder import lag_features_for_horizon
+
+    for shorter, longer in ((1, 24), (24, 168)):
+        assert set(lag_features_for_horizon(longer)) <= set(lag_features_for_horizon(shorter))
+
+
+def test_rolling_mean_is_shifted_by_the_horizon():
+    """The rolling window must not overlap information unavailable at forecast time."""
+    import numpy as np
+    import pandas as pd
+
+    from app.experiments import ladder as L
+
+    n = 400
+    df = pd.DataFrame({
+        "building_id": "b0",
+        "timestamp": pd.date_range("2016-01-01", periods=n, freq="h"),
+        L.TARGET_RAW: np.arange(n, dtype="float64"),
+    })
+    out = L.add_lags(df, horizon=24)
+    # With a strictly increasing series, a window shifted by 24 must sit at
+    # least 24 steps behind the current value.
+    valid = out.dropna(subset=["energy_roll_24"])
+    assert (valid[L.TARGET_RAW] - valid["energy_roll_24"] >= 24).all()
