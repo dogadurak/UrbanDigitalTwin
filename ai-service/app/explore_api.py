@@ -288,3 +288,25 @@ def diagnose_building(building_id: str, year: int = 2017):
             detail="Not enough {} data to diagnose '{}'.".format(year, building_id),
         )
     return result
+
+
+@router.get("/anomaly/{building_id}")
+def anomaly_scan(building_id: str, sigma: float = 3.0, min_hours: int = 4):
+    """When did this building stop resembling its own past?
+
+    Fits a baseline on the building's 2016 data (calendar and weather only) and
+    scores 2017 against it -- the whole-building approach of IPMVP Option C and
+    ASHRAE Guideline 14. Flagged hours are grouped into events, because a fault
+    is a run of hours and a single hour is noise.
+    """
+    from app import anomaly as A
+    from app.main import get_building
+
+    b = get_building(building_id)
+    if b is None:
+        raise HTTPException(status_code=404, detail="Unknown building '{}'".format(building_id))
+
+    result = A.scan(b["site_id"], building_id, sigma=sigma, min_hours=min_hours)
+    if result is None:
+        raise HTTPException(status_code=404, detail="No data for '{}'".format(building_id))
+    return result

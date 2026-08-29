@@ -6,6 +6,7 @@ import BuildingProfile from './components/BuildingProfile';
 import EuiByUse from './components/EuiByUse';
 import ScreeningPanel from './components/ScreeningPanel';
 import DiagnosticsPanel from './components/DiagnosticsPanel';
+import AnomalyPanel from './components/AnomalyPanel';
 import { api, scoreColor, SCORE_STOPS } from './api';
 
 /**
@@ -214,6 +215,9 @@ export default function App() {
                   <>
                     <section className="p-4 border-b border-slate-800">
                       <DiagnosticsPanel buildingId={buildingId} />
+                    </section>
+                    <section className="p-4 border-b border-slate-800">
+                      <AnomalyPanel buildingId={buildingId} />
                     </section>
                     <section className="p-4">
                       <h3 className="text-sm font-semibold text-slate-200 mb-2">
