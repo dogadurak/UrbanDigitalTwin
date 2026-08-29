@@ -24,7 +24,8 @@ margin** — and the interesting part is *how* that was established.
 > **2.8 CV(RMSE) points**. Real building attributes are worth **21.5**. A 7.7×
 > difference, consistent across 12 of 12 held-out city blocks.
 >
-> Full write-up: **[docs/RESULTS.md](docs/RESULTS.md)**
+> Full write-up: **[docs/RESULTS.md](docs/RESULTS.md)** · Method and its
+> grounding: **[docs/METHOD.md](docs/METHOD.md)**
 
 ---
 
@@ -172,7 +173,8 @@ ai-service/app/
   experiments/        the M0–M3' ladder, analysis, production training
   main.py             serving API
 db/                   01..07, applied in order on first start
-docs/                 RESULTS.md, DATA_QUALITY.md, QGIS_VALIDATION_WORKFLOW.md
+docs/                 RESULTS.md (findings), METHOD.md (what each choice
+                      rests on), DATA_QUALITY.md, QGIS_VALIDATION_WORKFLOW.md
 archive/legacy_v3/    quarantined pre-Sprint-1 work, with the defects documented
 frontend/src/         results dashboard: Cesium globe of the 12 held-out
                       city blocks, ladder table, live prediction panel
