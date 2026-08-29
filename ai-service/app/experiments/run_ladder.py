@@ -51,7 +51,7 @@ def _sample_per_building(df, rows_per_building, rng):
     return shuffled[rank < rows_per_building]
 
 
-def prepare(task, cohort, rows_per_building=None, seed=0, verbose=True):
+def prepare(task, cohort, rows_per_building=None, seed=0, verbose=True, horizon=1):
     """Load, restrict to the cohort, derive features and sample rows.
 
     Loads one site partition at a time. The full dataset is 22.9 M rows and does
@@ -81,7 +81,8 @@ def prepare(task, cohort, rows_per_building=None, seed=0, verbose=True):
 
         df = L.add_derived(df)
         if task == "forecast":
-            df = L.add_lags(df).dropna(subset=L.LAGS)
+            df = L.add_lags(df, horizon=horizon)
+            df = df.dropna(subset=L.lag_features_for_horizon(horizon))
 
         # Rows without weather cannot serve M2 upward; drop once so every rung
         # of the ladder sees identical rows and the comparison stays paired.
@@ -115,6 +116,8 @@ def main():
     ap.add_argument("--rows-per-building", type=int, default=1200)
     ap.add_argument("--building-folds", type=int, default=5)
     ap.add_argument("--n-estimators", type=int, default=250)
+    ap.add_argument("--horizon", type=int, default=1,
+                    help="Forecast horizon in hours. Only lags at least this old may be used.")
     ap.add_argument("--out", default=None)
     ap.add_argument("--protocols", nargs="*", default=None)
     args = ap.parse_args()
@@ -124,7 +127,8 @@ def main():
     print("cohort {}: {} buildings, {} sites, {} folds".format(
         cohort.name, cohort.n_buildings, len(cohort.sites), len(cohort.folds)))
 
-    df = prepare(args.task, cohort, rows_per_building=args.rows_per_building)
+    df = prepare(args.task, cohort, rows_per_building=args.rows_per_building,
+                 horizon=args.horizon)
     print("prepared {:,} rows x {} buildings for task={}".format(
         len(df), df["building_id"].nunique(), args.task))
 
@@ -132,7 +136,8 @@ def main():
     if args.protocols:
         protocols = [p for p in protocols if p.name in args.protocols]
 
-    specs = L.build_specs(task=args.task, factory=L.xgb_factory(n_estimators=args.n_estimators))
+    specs = L.build_specs(task=args.task, horizon=args.horizon,
+                          factory=L.xgb_factory(n_estimators=args.n_estimators))
     seeds = tuple(range(args.seeds))
 
     results = H.run_matrix(
@@ -140,9 +145,12 @@ def main():
         check_leakage=True, inverse_transform=L.inverse_target,
     )
 
-    out_dir = args.out or os.path.join(DEFAULT_OUT, args.task)
+    suffix = "" if args.task != "forecast" else "_h{}".format(args.horizon)
+    out_dir = args.out or os.path.join(DEFAULT_OUT, args.task + suffix)
     H.save_results(results, out_dir, {
         "task": args.task,
+        "horizon_hours": args.horizon,
+        "lags_available": L.lag_features_for_horizon(args.horizon) if args.task == "forecast" else [],
         "cohort": cohort.summary(),
         "seeds": list(seeds),
         "rows_per_building": args.rows_per_building,

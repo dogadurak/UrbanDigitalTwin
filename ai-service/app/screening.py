@@ -260,3 +260,52 @@ def main():  # pragma: no cover - CLI
 
 if __name__ == "__main__":
     main()
+
+
+def validate_stability(years=(2016, 2017), peer_threshold=PEER_RATIO_THRESHOLD):
+    """Does the flag survive being computed on a different year's data?
+
+    A screening rule that fires on year-to-year noise sends auditors to
+    buildings that were merely having an unusual twelve months. The test is
+    simple and hard to argue with: compute the peer ratio independently in each
+    year, using only that year's data and that year's peer medians, and see
+    whether the same buildings come out.
+
+    What a high persistence does and does not prove: it shows the signal is
+    real and structural rather than noise, which is what a triage list needs.
+    It does not show the building is wasteful -- a data centre is persistently
+    above its category median because of what it is.
+    """
+    frames = []
+    for year in years:
+        b = _load_year(year)
+        b = b[(b["sqm"] > 0) & (b["n_hours"] >= MIN_HOURS)].copy()
+        b["eui"] = b["mean_kwh"] * 1000.0 / b["sqm"]
+        b["ratio"] = b["eui"] / b.groupby("use")["eui"].transform("median")
+        frames.append(b["ratio"].rename(year))
+
+    wide = pd.concat(frames, axis=1).replace([np.inf, -np.inf], np.nan).dropna()
+    if wide.empty or len(years) != 2:
+        return {"n_buildings": int(len(wide)), "note": "needs exactly two comparable years"}
+
+    a, b_ = years
+    flag_a, flag_b = wide[a] >= peer_threshold, wide[b_] >= peer_threshold
+    both = int((flag_a & flag_b).sum())
+
+    return {
+        "years": list(years),
+        "peer_threshold": peer_threshold,
+        "n_buildings": int(len(wide)),
+        "n_flagged_{}".format(a): int(flag_a.sum()),
+        "n_flagged_{}".format(b_): int(flag_b.sum()),
+        "n_flagged_both": both,
+        "persistence": round(float(both / max(int(flag_a.sum()), 1)), 4),
+        "pearson_r": round(float(wide[a].corr(wide[b_])), 4),
+        "spearman_r": round(float(wide[a].corr(wide[b_], method="spearman")), 4),
+        "interpretation": (
+            "High persistence means the flag is structural, not year-to-year "
+            "noise -- which is what a triage list needs. It does not mean the "
+            "building is wasteful: a data centre is persistently above its "
+            "category median because of what it is."
+        ),
+    }

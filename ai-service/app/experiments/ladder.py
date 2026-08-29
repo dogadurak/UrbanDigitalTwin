@@ -96,18 +96,33 @@ def add_derived(df):
     return out
 
 
-def add_lags(df):
-    """Autoregressive features, computed per building on a time-sorted frame.
+def lag_features_for_horizon(horizon):
+    """Which lags a forecast at ``horizon`` hours ahead may legally use.
 
-    Only used by the ``forecast`` task. Rolling means are shifted so the current
-    observation never enters its own predictor.
+    Forecasting the value at t+h from information available at t, the most
+    recent reading is h hours before the target. A model predicting a week
+    ahead cannot use last hour's meter reading, and quoting a 1-hour-ahead
+    accuracy as though it were a general forecast figure overstates what the
+    system can do.
+    """
+    return [name for name, lag in (("energy_lag_1", 1), ("energy_lag_24", 24),
+                                   ("energy_lag_168", 168)) if lag >= horizon] +            ["energy_roll_24"]
+
+
+def add_lags(df, horizon=1):
+    """Autoregressive features valid for a forecast ``horizon`` hours ahead.
+
+    Rolling means are shifted by the horizon as well, so no window overlaps
+    information that would not yet exist when the forecast is made.
     """
     out = df.sort_values(["building_id", "timestamp"]).copy()
     g = out.groupby("building_id")[TARGET_RAW]
     out["energy_lag_1"] = g.shift(1)
     out["energy_lag_24"] = g.shift(24)
     out["energy_lag_168"] = g.shift(168)
-    out["energy_roll_24"] = g.transform(lambda s: s.shift(1).rolling(24, min_periods=6).mean())
+    out["energy_roll_24"] = g.transform(
+        lambda s: s.shift(horizon).rolling(24, min_periods=6).mean()
+    )
     return out
 
 
@@ -165,13 +180,13 @@ def xgb_factory(n_estimators=250, max_depth=6, learning_rate=0.08, subsample=0.8
     return build
 
 
-def build_specs(task="cold_start", factory=None):
+def build_specs(task="cold_start", factory=None, horizon=1):
     """Return the ladder for a task, as ModelSpec objects."""
     from app.evaluation.harness import ModelSpec
 
     factory = factory or xgb_factory()
-    lag_features = LAGS if task == "forecast" else []
-    suffix = "" if task == "cold_start" else " (+lags)"
+    lag_features = lag_features_for_horizon(horizon) if task == "forecast" else []
+    suffix = "" if task == "cold_start" else " (+lags, h={}h)".format(horizon)
 
     specs = [
         ModelSpec(
