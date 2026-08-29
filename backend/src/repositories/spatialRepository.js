@@ -8,8 +8,9 @@ class SpatialRepository {
         'features', json_agg(ST_AsGeoJSON(t.*)::json)
       ) AS geojson
       FROM (
-        SELECT osm_id, name, building, ST_Transform(geom, 4326) AS geom
+        SELECT osm_id, name, building_type, levels, ST_Transform(geom, 4326) AS geom
         FROM osm_buildings
+        WHERE geom IS NOT NULL
       ) AS t;
     `;
     const result = await db.query(query);
@@ -23,8 +24,9 @@ class SpatialRepository {
         'features', json_agg(ST_AsGeoJSON(t.*)::json)
       ) AS geojson
       FROM (
-        SELECT osm_id, name, highway, ST_Transform(geom, 4326) AS geom
+        SELECT osm_id, name, highway_type, ST_Transform(geom, 4326) AS geom
         FROM osm_roads
+        WHERE geom IS NOT NULL
       ) AS t;
     `;
     const result = await db.query(query);
