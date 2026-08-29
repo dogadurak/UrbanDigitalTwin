@@ -75,3 +75,21 @@ cross-validation.
 
 Until real spatial features exist, `spatial_features` is intentionally empty.
 An empty table is honest; a fabricated one is not.
+
+---
+
+## Model artefacts
+
+`model_artefacts/` holds the saved models and metrics from that work, moved here
+out of `app/models/saved/` where they sat alongside the current model and could
+have been loaded by mistake.
+
+| File | Why it is invalid |
+|---|---|
+| `xgboost_spatial_v3_final.joblib`, `xgboost_spatial_v3.json` | trained on the fabricated NDVI/NDBI/elevation constants, with `lat`/`lon` fed in directly |
+| `isolation_forest_spatial_v3.joblib` | fitted on residuals from a lag-free model, then served residuals from a lag-based one — in practice it never fired |
+| `xgboost_residual_v2.joblib`, `xgboost_energy_v1.joblib`, `isolation_forest_v1.joblib` | earlier iterations on 4 buildings |
+| `model_metrics*.json`, `feature_importance*.json`, `metadata_*.json` | the metrics those models reported, including the R² = 0.9954 that was building identity |
+
+The served model is `app/models/saved/energy_cold_start.joblib`, trained on 1381
+buildings and shipped with its held-out metrics.
