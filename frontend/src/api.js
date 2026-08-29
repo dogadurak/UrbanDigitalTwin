@@ -36,6 +36,8 @@ export const api = {
   profile: (id, year = 2017) => get(`/api/explore/building/${id}/profile?year=${year}`),
   siteSummary: (site, year = 2017) => get(`/api/explore/site/${site}/summary?year=${year}`),
   euiByUse: () => get('/api/explore/eui-by-use'),
+  screening: (threshold = 2.0, limit = 40) =>
+    get(`/api/screening?threshold=${threshold}&limit=${limit}`),
 };
 
 /** Legend stops for the CV(RMSE) colour scale, shared by map and swatches. */

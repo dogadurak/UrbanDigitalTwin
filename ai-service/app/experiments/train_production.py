@@ -30,6 +30,7 @@ from app.data_engineering import cohorts as ch
 from app.evaluation import harness as H
 from app.experiments import ladder as L
 from app.experiments import run_ladder as R
+from app.provenance import provenance
 
 MODEL_DIR = os.path.join("app", "models", "saved")
 MODEL_NAME = "energy_cold_start"
@@ -117,7 +118,7 @@ def main():
             "then averaged over folds, on data the model had not seen. "
             "In-sample scores are deliberately not reported."
         ),
-        "git_sha": H._git_sha(),
+        **provenance(),
     }
     meta_path = os.path.join(args.out, "{}_metadata.json".format(MODEL_NAME))
     with open(meta_path, "w", encoding="utf-8") as fh:

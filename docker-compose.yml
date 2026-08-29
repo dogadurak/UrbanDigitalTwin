@@ -73,6 +73,9 @@ services:
       - "8000:8000"
     volumes:
       - ./ai-service:/app
+      # Read-only so results can record the commit that produced them. The
+      # image has no git binary; app/provenance.py reads these files directly.
+      - ./.git:/repo/.git:ro
     environment:
       - ORION_LD_URL=http://orion-ld:1026/ngsi-ld/v1
       - MQTT_BROKER=mosquitto

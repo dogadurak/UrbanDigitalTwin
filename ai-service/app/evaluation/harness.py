@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import time
 from dataclasses import dataclass, field
 
@@ -32,13 +31,7 @@ from app.data_engineering import leakage
 from app.evaluation import metrics as M
 
 
-def _git_sha():
-    try:
-        return subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL, text=True
-        ).strip()
-    except Exception:
-        return "unknown"
+from app.provenance import git_sha as _git_sha  # noqa: E402  (kept as a name)
 
 
 @dataclass
@@ -191,7 +184,8 @@ def save_results(results, out_dir, run_meta):
     os.makedirs(out_dir, exist_ok=True)
     results.to_csv(os.path.join(out_dir, "fold_results.csv"), index=False)
     meta = dict(run_meta)
-    meta["git_sha"] = _git_sha()
+    from app.provenance import provenance
+    meta.update(provenance())
     meta["written_at"] = pd.Timestamp.utcnow().isoformat()
     with open(os.path.join(out_dir, "run.json"), "w", encoding="utf-8") as fh:
         json.dump(meta, fh, indent=2, default=str)

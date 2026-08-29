@@ -4,6 +4,7 @@ import ResultsTable from './components/ResultsTable';
 import PredictPanel from './components/PredictPanel';
 import BuildingProfile from './components/BuildingProfile';
 import EuiByUse from './components/EuiByUse';
+import ScreeningPanel from './components/ScreeningPanel';
 import { api, scoreColor, SCORE_STOPS } from './api';
 
 /**
@@ -124,7 +125,8 @@ export default function App() {
         {/* Side panel */}
         <aside className="w-[440px] border-l border-slate-800 flex flex-col shrink-0">
           <nav className="flex border-b border-slate-800 shrink-0">
-            {[['results', 'Results'], ['cities', 'Cities'], ['buildings', 'Buildings']].map(
+            {[['results', 'Results'], ['screening', 'Screening'],
+              ['cities', 'Cities'], ['buildings', 'Buildings']].map(
               ([k, label]) => (
                 <button key={k} onClick={() => setTab(k)}
                   className={`flex-1 text-[12px] py-2 transition border-b-2 ${
@@ -145,6 +147,12 @@ export default function App() {
                   <EuiByUse />
                 </section>
               </>
+            )}
+
+            {tab === 'screening' && (
+              <section className="p-4">
+                <ScreeningPanel onSelectBuilding={(id) => { setBuildingId(id); setTab('buildings'); }} />
+              </section>
             )}
 
             {tab === 'cities' && (

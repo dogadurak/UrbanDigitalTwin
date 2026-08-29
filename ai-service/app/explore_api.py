@@ -242,3 +242,25 @@ def eui_by_use(year: int = 2017, min_buildings: int = 10):
         "note": "Measured, not modelled. This spread is why building attributes "
                 "outperform location by 7.7x in the cold-start task.",
     }
+
+
+@router.get("/screening")
+def screening(year: int = 2017, threshold: float = 2.0, limit: int = 50):
+    """Ranked shortlist of buildings to investigate first.
+
+    Two independent peer tests must agree before a building is flagged, and a
+    deviation smaller than the model's demonstrated out-of-sample error cannot
+    raise a flag. See app/screening.py for what this is and is not.
+    """
+    from app import screening as S
+
+    key = ("screening", year, threshold)
+    if key in _CACHE:
+        table, summary = _CACHE[key]
+    else:
+        table, summary = S.screen(year=year, peer_threshold=threshold)
+        if len(_CACHE) > 3:
+            _CACHE.clear()
+        _CACHE[key] = (table, summary)
+
+    return {"summary": summary, "buildings": S.to_records(table, limit=limit)}

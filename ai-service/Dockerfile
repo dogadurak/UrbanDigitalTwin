@@ -7,7 +7,9 @@ RUN wget -O /usr/local/bin/wait-for-it https://raw.githubusercontent.com/vishnub
 RUN chmod +x /usr/local/bin/wait-for-it
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# scipy and pyarrow are large wheels; the default 15 s socket timeout is not
+# enough on a slow link and the build fails halfway through.
+RUN pip install --no-cache-dir --timeout 120 --retries 8 -r requirements.txt
 
 COPY . .
 
