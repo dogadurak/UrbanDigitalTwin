@@ -246,6 +246,59 @@ not on a precise estimate of how small.
 
 ---
 
+## 4b. What the model relies on, and where it is reliable
+
+Permutation importance on held-out 2017 data — the loss in CV(RMSE) when a
+column is shuffled. Not XGBoost's `gain`, which is biased toward continuous and
+high-cardinality columns and is what ranked a constant `elevation` column second
+in the archived V3 model.
+
+| Feature | CV(RMSE) points lost when shuffled |
+|---|---:|
+| `log_sqm` | **180.4** |
+| `building_age` | 17.7 |
+| `numberoffloors` | 10.6 |
+| `hour` | 5.5 |
+| `day_of_week` | 1.8 |
+| `dewTemperature` | 1.6 |
+| `airTemperature`, `month`, `cdh` | < 1 |
+| `cloudCoverage`, `hdh`, `windSpeed` | ≈ 0 |
+| `is_weekend` | −0.03 |
+
+The cold-start model is a floor-area model with corrections. That is the
+expected physics: for a building you have never metered, size sets the *level*
+of consumption and weather only shapes it. `is_weekend` scores slightly negative
+— shuffling it marginally helps — meaning it is noise that `day_of_week` already
+carries.
+
+This is the third independent line of evidence for the study's main finding.
+Building attributes dominate; the variables that would carry urban context are
+not where the signal is.
+
+### Area of applicability
+
+The portfolio-wide figure hides large variation in where the model can be
+trusted:
+
+| Primary use | n | CV(RMSE) | | Floor area | n | CV(RMSE) |
+|---|---:|---:|---|---|---:|---:|
+| Healthcare | 25 | **21.2%** | | > 20,000 m² | 140 | **28.8%** |
+| Parking | 22 | 27.3% | | 5,000–20,000 m² | 594 | 32.8% |
+| Lodging/residential | 146 | 29.4% | | 1,000–5,000 m² | 484 | 41.2% |
+| Public services | 143 | 33.4% | | < 1,000 m² | 150 | **48.3%** |
+| Education | 528 | 37.7% | | | | |
+| Office | 264 | 42.0% | | | | |
+| Entertainment | 160 | 45.6% | | | | |
+| Other | 21 | 49.7% | | | | |
+
+Large buildings are systematically easier to predict, and mixed-use ("Other") is
+hardest. This bears directly on the screening module: a flag on a 40,000 m²
+hospital rests on a model performing at 21–29%, while a flag on an 800 m²
+mixed-use building rests on one performing at nearly 50%. The same flag does not
+carry the same weight, and a deployment should surface that.
+
+---
+
 ## 5. Limitations
 
 - **n = 12 blocks.** Every site-level conclusion has this sample size. The
