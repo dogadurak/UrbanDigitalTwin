@@ -264,3 +264,27 @@ def screening(year: int = 2017, threshold: float = 2.0, limit: int = 50):
         _CACHE[key] = (table, summary)
 
     return {"summary": summary, "buildings": S.to_records(table, limit=limit)}
+
+
+@router.get("/diagnose/{building_id}")
+def diagnose_building(building_id: str, year: int = 2017):
+    """Why a building was flagged, and what to inspect first.
+
+    Compares the building's measured load *shape* against its peer group. See
+    app/diagnostics.py: these are hypotheses to check on site, and each one
+    carries what would explain it legitimately.
+    """
+    from app import diagnostics as D
+    from app.main import get_building
+
+    b = get_building(building_id)
+    if b is None:
+        raise HTTPException(status_code=404, detail="Unknown building '{}'".format(building_id))
+
+    result = D.diagnose(b["site_id"], building_id, year=year)
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Not enough {} data to diagnose '{}'.".format(year, building_id),
+        )
+    return result

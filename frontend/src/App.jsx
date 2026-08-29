@@ -5,6 +5,7 @@ import PredictPanel from './components/PredictPanel';
 import BuildingProfile from './components/BuildingProfile';
 import EuiByUse from './components/EuiByUse';
 import ScreeningPanel from './components/ScreeningPanel';
+import DiagnosticsPanel from './components/DiagnosticsPanel';
 import { api, scoreColor, SCORE_STOPS } from './api';
 
 /**
@@ -210,12 +211,17 @@ export default function App() {
                   <PredictPanel health={health} onBuildingChange={setBuildingId} />
                 </section>
                 {buildingId && (
-                  <section className="p-4">
-                    <h3 className="text-sm font-semibold text-slate-200 mb-2">
-                      Measured 2017 load vs prediction
-                    </h3>
-                    <BuildingProfile buildingId={buildingId} />
-                  </section>
+                  <>
+                    <section className="p-4 border-b border-slate-800">
+                      <DiagnosticsPanel buildingId={buildingId} />
+                    </section>
+                    <section className="p-4">
+                      <h3 className="text-sm font-semibold text-slate-200 mb-2">
+                        Measured 2017 load vs prediction
+                      </h3>
+                      <BuildingProfile buildingId={buildingId} />
+                    </section>
+                  </>
                 )}
               </>
             )}
