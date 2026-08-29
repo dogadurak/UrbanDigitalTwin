@@ -46,8 +46,17 @@ export default function ScreeningPanel({ onSelectBuilding }) {
           className="w-full mt-1" />
       </label>
 
-      {loading && <p className="text-[11px] text-slate-500">Screening portfolio…</p>}
       {error && <p className="text-[11px] text-rose-400">{error}</p>}
+
+      {/* Dim the previous result while a new threshold is being screened.
+          Showing "screening…" above numbers computed for the old threshold
+          read as though those numbers were the answer to the new one. */}
+      <div className={loading ? 'opacity-40 pointer-events-none transition-opacity' : 'transition-opacity'}>
+      {loading && (
+        <p className="text-[11px] text-slate-400 mb-2">
+          Screening at {threshold.toFixed(1)}× …
+        </p>
+      )}
 
       {s && (
         <>
@@ -92,6 +101,7 @@ export default function ScreeningPanel({ onSelectBuilding }) {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }
