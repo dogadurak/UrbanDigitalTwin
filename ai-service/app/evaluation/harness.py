@@ -94,11 +94,19 @@ def _design_matrix(df, spec, categories=None):
 
 
 def run_spec(df, spec, protocol, cohort=None, target="target", seeds=(0,),
-             check_leakage=True, max_identifiability=0.99, verbose=True):
+             check_leakage=True, max_identifiability=0.99, verbose=True,
+             inverse_transform=None):
     """Run one model spec under one protocol. Returns per-fold rows.
 
     ``df`` must contain ``building_id``, ``site_id``, the target and every
     feature the spec names.
+
+    ``inverse_transform`` maps model space back to the reporting scale before
+    metrics are computed. With a log target this matters: CV(RMSE) and NMBE are
+    only interpretable in physical units, and computing them in log space would
+    quietly report a different, flattering quantity. Applying it to actuals and
+    predictions alike also means retransformation bias lands in NMBE, where it
+    belongs, instead of disappearing.
     """
     if check_leakage:
         # identity_features are exempt: they are the control arm, declared.
@@ -128,7 +136,13 @@ def run_spec(df, spec, protocol, cohort=None, target="target", seeds=(0,),
             pred = np.asarray(model.predict(X_te), dtype="float64")
             fit_seconds = time.time() - t0
 
-            pb = M.per_building(y_te, pred, te["building_id"].to_numpy())
+            if inverse_transform is not None:
+                y_report = np.asarray(inverse_transform(y_te), dtype="float64")
+                pred_report = np.asarray(inverse_transform(pred), dtype="float64")
+            else:
+                y_report, pred_report = y_te, pred
+
+            pb = M.per_building(y_report, pred_report, te["building_id"].to_numpy())
             agg = M.aggregate(pb)
 
             row = {
