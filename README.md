@@ -382,6 +382,78 @@ forecast-horizon leakage and the year-long-event bug.
 
 ---
 
+---
+
+## What this repository fixed about itself
+
+An earlier version of this project reported R² = 0.9954 on four buildings and
+presented Sentinel-2 NDVI, OSM density and Copernicus DEM as inputs. None of
+those features existed: they were hand-authored Python constants and a
+`random.uniform()` mock, and the R² was the model learning which of four
+buildings it was looking at. Rebuilding it turned up a series of defects worth
+listing, because the classes they fall into recur in this kind of work.
+
+**Fabricated inputs presented as measurements**
+
+- NDVI, NDBI, building density, elevation and slope written as literals for four
+  buildings, with comments like `# High vegetation (pine forest)`.
+- `dem_ingestion.py` printing *"Mocking DEM extraction (via OpenTopography /
+  Copernicus API simulation)"* and returning `45.2 + random.uniform(-1, 1)`.
+- 147 rows of `sentinel_observations` with plausible product ids, midnight
+  acquisition times on a regular 5-day grid, and **every measurement column
+  NULL** — provenance without data. The script that wrote them was not in the
+  repository.
+- Buildings at the BDG2 `Rat` site (Washington DC) assigned invented İzmir
+  coordinates — the wrong continent.
+
+**Results that measured the wrong thing**
+
+- The reported "spatial improvement" was building identity: with four buildings,
+  each of those eight variables is a bijective re-encoding of `building_id`, and
+  `lat`/`lon` were fed to the model directly. Predicting each building's constant
+  mean — no model at all — scored R² = 0.9188 on the same split.
+- Two `ablation_results.json` files disagreed by 20×, one written by a script
+  version that no longer existed.
+- The anomaly experiment set `contamination = n_anomalies / len(test_df)`,
+  telling the detector how many anomalies to find, fitted it on the test set,
+  and injected anomalies only where a feature it was given could reveal them.
+
+**Infrastructure that had never worked**
+
+- `.gitignore` was UTF-16LE with a BOM, so git could not parse any pattern in
+  it. 1,302 files of `node_modules` were tracked. Tracked files: 1,460 → 155.
+- The Docker image had never built correctly — `tenacity` and `pyarrow` were
+  missing from it, and the running container only worked because packages had
+  been installed into it by hand. A fresh `docker compose up` crash-looped.
+- Compose mounted a single SQL file into `/docker-entrypoint-initdb.d`, so four
+  schema files never ran. `building_energy_history` did not exist on a fresh
+  volume, which broke every request the API served. 5 tables → 16.
+- Every result recorded `git_sha: "unknown"`: the image has no git binary, the
+  subprocess call failed, and the failure was swallowed.
+- Both GIS endpoints returned HTTP 500 — the repository selected `building` and
+  `highway` where the schema defines `building_type` and `highway_type` — so the
+  only real spatial data in the system, 2,465 OSM buildings, was unreachable.
+
+**Defects introduced during the rebuild, and caught**
+
+- The screening rule's model test read a global populated only by the FastAPI
+  startup hook, so in a CLI process half the design silently did not run. Fixing
+  it cut the flagged list from 249 buildings to 79.
+- The first anomaly scan returned a single "event" 1,343 hours long, because the
+  building's consumption level had moved between the baseline and reporting
+  years. IPMVP calls that a non-routine adjustment; the building had changed,
+  not broken.
+- The forecast headline quoted 9.3% CV(RMSE) with no horizon attached. With
+  `energy_lag_1` available that is close to nowcasting, and persistence alone
+  explains a median 88% of hourly variance.
+- The `fig-cities` chart drew one fold at 1007% to scale, flattening the other
+  eleven bars and painting its "improved" bar over the baseline so the worst
+  fold looked like the best.
+
+The last group matters most. The first three groups were inherited; the fourth
+was mine, and the difference between a project that finds those and one that
+ships them is the evaluation harness rather than any individual's care.
+
 ## Limitations
 
 - **n = 12** for every city-level conclusion. BDG2 publishes 15 coordinates for 1,636 buildings.
