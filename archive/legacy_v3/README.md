@@ -93,3 +93,21 @@ have been loaded by mistake.
 
 The served model is `app/models/saved/energy_cold_start.joblib`, trained on 1381
 buildings and shipped with its held-out metrics.
+
+
+## The pipeline that produced them
+
+`prepare_pilot_data.py` and `train_models.py` are the dataset builder and
+trainer behind the results above. Both carried a header saying they were
+superseded, but they sat in the live source tree next to current code where a
+reader could reasonably take them for the real pipeline. They are here now.
+
+- `prepare_pilot_data.py` — selects 4 of 1636 buildings, all from one site, and
+  targets absolute kWh across buildings whose means span 61x.
+- `train_models.py` — its `features_v3` list includes `lat` and `lon`. BDG2 has
+  14 usable distinct coordinate pairs, so those columns are a site label fed
+  straight to the model. `app/data_engineering/leakage.py` now rejects exactly
+  this.
+
+Replaced by `app/data_engineering/build_dataset.py` and
+`app/experiments/run_ladder.py`.
