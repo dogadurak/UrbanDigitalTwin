@@ -1,0 +1,58 @@
+version: "1"
+
+services:
+  - type: web
+    name: geotwin-ai-service
+    env: python
+    plan: free
+    rootDir: ai-service
+    buildCommand: pip install -r requirements.txt
+    preDeployCommand: python init_render_db.py
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: geotwin-db
+          property: connectionString
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: geotwin-db
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: geotwin-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: geotwin-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: geotwin-db
+          property: user
+      - key: DB_PASS
+        fromDatabase:
+          name: geotwin-db
+          property: password
+      - key: PYTHON_VERSION
+        value: "3.10.11"
+
+  - type: web
+    name: geotwin-frontend
+    env: static
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_AI_URL
+        fromService:
+          type: web
+          name: geotwin-ai-service
+          envVarKey: RENDER_EXTERNAL_URL
+
+databases:
+  - name: geotwin-db
+    databaseName: geotwin_db
+    user: geotwin_user
+    plan: free

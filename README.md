@@ -1,5 +1,7 @@
 # Building Energy Intelligence
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+
 *Which buildings to inspect first, what to check when you get there, and how much energy is at stake.*
 
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
