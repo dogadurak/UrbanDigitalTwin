@@ -10,29 +10,7 @@ services:
     startCommand: python init_render_db.py && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: geotwin-db
-          property: connectionString
-      - key: POSTGRES_HOST
-        fromDatabase:
-          name: geotwin-db
-          property: host
-      - key: POSTGRES_PORT
-        fromDatabase:
-          name: geotwin-db
-          property: port
-      - key: DB_NAME
-        fromDatabase:
-          name: geotwin-db
-          property: database
-      - key: DB_USER
-        fromDatabase:
-          name: geotwin-db
-          property: user
-      - key: DB_PASS
-        fromDatabase:
-          name: geotwin-db
-          property: password
+        sync: false
       - key: PYTHON_VERSION
         value: "3.10.11"
 
@@ -48,9 +26,3 @@ services:
           type: web
           name: geotwin-ai-service
           envVarKey: RENDER_EXTERNAL_URL
-
-databases:
-  - name: geotwin-db
-    databaseName: geotwin_db
-    user: geotwin_user
-    plan: free

@@ -129,7 +129,8 @@ class WhatIfRequest(BaseModel):
 
 @retry(wait=wait_exponential(multiplier=1, min=1, max=8), stop=stop_after_attempt(3))
 def get_building(building_id):
-    conn = psycopg2.connect(**DB_PARAMS)
+    db_url = os.environ.get("DATABASE_URL")
+    conn = psycopg2.connect(db_url) if db_url else psycopg2.connect(**DB_PARAMS)
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
@@ -245,7 +246,8 @@ def health():
 
 @app.get("/api/buildings")
 def list_buildings(site_id: str = None, limit: int = 100, usable_only: bool = True):
-    conn = psycopg2.connect(**DB_PARAMS)
+    db_url = os.environ.get("DATABASE_URL")
+    conn = psycopg2.connect(db_url) if db_url else psycopg2.connect(**DB_PARAMS)
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             sql = ("SELECT building_id, site_id, spatial_block, primaryspaceusage, "

@@ -24,7 +24,8 @@ def get_spatial_context(
     Strictly applies Forward-Fill by selecting the most recent observation <= date.
     """
     try:
-        conn = psycopg2.connect(**DB_PARAMS)
+        db_url = os.environ.get("DATABASE_URL")
+        conn = psycopg2.connect(db_url) if db_url else psycopg2.connect(**DB_PARAMS)
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
         # If no date is provided, just get the absolute latest
