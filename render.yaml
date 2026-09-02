@@ -39,7 +39,6 @@ services:
   - type: web
     name: geotwin-frontend
     env: static
-    plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
