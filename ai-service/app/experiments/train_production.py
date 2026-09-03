@@ -37,7 +37,19 @@ MODEL_NAME = "energy_cold_start"
 
 
 def _held_out_metrics(run_dir, spec_name):
-    """Read the harness result for this spec, so the model ships with evidence."""
+    """Read the harness result for this spec, so the model ships with evidence.
+
+    Both aggregations are written, each under its own name. They are not
+    interchangeable: over the 12 leave-one-city-out folds the median is 59.5%
+    and the mean 75.7%, because one city (Lamb) scores 244% while the other
+    eleven sit between 54% and 68%. Which is the right figure to quote depends
+    on what it is for -- a band that must cover the bad case wants the mean --
+    but the reader has to be able to tell which one they are looking at.
+
+    Earlier versions wrote only ``cv_rmse_median_pct`` and put the *mean* in
+    it, so the dashboard's results table and its prediction band disagreed by
+    16 points with nothing to explain the gap. See app/model_metrics.py.
+    """
     path = os.path.join(run_dir, "fold_results.csv")
     if not os.path.exists(path):
         return None
@@ -48,11 +60,14 @@ def _held_out_metrics(run_dir, spec_name):
     out = {}
     for protocol, g in res.groupby("protocol"):
         per_fold = g.groupby("fold")["cv_rmse_median"].mean()
+        nmbe_per_fold = g.groupby("fold")["nmbe_median"].mean()
         out[protocol] = {
-            "cv_rmse_median_pct": round(float(per_fold.mean()), 2),
+            "cv_rmse_mean_pct": round(float(per_fold.mean()), 2),
+            "cv_rmse_median_pct": round(float(per_fold.median()), 2),
             "fold_sd": round(float(per_fold.std(ddof=1)), 2) if len(per_fold) > 1 else None,
             "n_folds": int(len(per_fold)),
-            "nmbe_median_pct": round(float(g["nmbe_median"].mean()), 2),
+            "nmbe_mean_pct": round(float(nmbe_per_fold.mean()), 2),
+            "nmbe_median_pct": round(float(nmbe_per_fold.median()), 2),
         }
     return out
 

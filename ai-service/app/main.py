@@ -37,6 +37,8 @@ from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from app import db as DB
+from app import model_metrics as MM
 from app.fiware_client import publish_ai_insight
 from app.spatial_api import router as spatial_router
 from app.results_api import router as results_router
@@ -67,13 +69,6 @@ META_PATH = os.path.join(MODEL_DIR, "energy_cold_start_metadata.json")
 
 BALANCE_POINT_C = 18.0
 
-DB_PARAMS = {
-    "dbname": os.environ.get("DB_NAME", "geotwin_db"),
-    "user": os.environ.get("DB_USER", "geotwin_user"),
-    "password": os.environ.get("DB_PASS", "geotwin_password"),
-    "host": os.environ.get("POSTGRES_HOST", "postgis"),
-    "port": os.environ.get("POSTGRES_PORT", "5432"),
-}
 
 MODEL = None
 META = None
@@ -129,8 +124,7 @@ class WhatIfRequest(BaseModel):
 
 @retry(wait=wait_exponential(multiplier=1, min=1, max=8), stop=stop_after_attempt(3))
 def get_building(building_id):
-    db_url = os.environ.get("DATABASE_URL")
-    conn = psycopg2.connect(db_url) if db_url else psycopg2.connect(**DB_PARAMS)
+    conn = DB.connect()
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
@@ -213,12 +207,13 @@ def predict_kwh(building, when, weather):
 
 
 def _validated_cv_rmse():
-    """Held-out CV(RMSE) for the strictest protocol available."""
-    metrics = (META or {}).get("held_out_metrics") or {}
-    for protocol in ("leave_block_out", "leave_buildings_out", "temporal", "random"):
-        if protocol in metrics and metrics[protocol].get("cv_rmse_median_pct"):
-            return metrics[protocol]["cv_rmse_median_pct"], protocol
-    return None, None
+    """Held-out CV(RMSE) for the strictest protocol available.
+
+    Two values only; see app/model_metrics.py for the aggregation, which
+    callers that display the number should quote alongside it.
+    """
+    value, protocol, _, _ = MM.validated_band(META)
+    return value, protocol
 
 
 # --------------------------------------------------------------------------
@@ -227,7 +222,7 @@ def _validated_cv_rmse():
 
 @app.get("/api/health")
 def health():
-    cv, protocol = _validated_cv_rmse()
+    cv, protocol, aggregation, n_folds = MM.validated_band(META)
     return {
         "status": "ok",
         "model_loaded": MODEL is not None,
@@ -236,6 +231,11 @@ def health():
         "trained_on_buildings": (META or {}).get("n_train_buildings"),
         "validated_cv_rmse_pct": cv,
         "validated_under": protocol,
+        # Named because the results table reports the median across the same
+        # folds and the two differ by 16 points. Without this the page shows
+        # one quantity as two numbers.
+        "validated_aggregation": aggregation,
+        "validated_n_folds": n_folds,
         "uses_spatial_features": False,
         "spatial_note": (
             "BDG2 coordinates are city-level with a 40 km bound, so no remote "
@@ -246,8 +246,7 @@ def health():
 
 @app.get("/api/buildings")
 def list_buildings(site_id: str = None, limit: int = 100, usable_only: bool = True):
-    db_url = os.environ.get("DATABASE_URL")
-    conn = psycopg2.connect(db_url) if db_url else psycopg2.connect(**DB_PARAMS)
+    conn = DB.connect()
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             sql = ("SELECT building_id, site_id, spatial_block, primaryspaceusage, "
@@ -273,7 +272,7 @@ def predict(req: PredictRequest):
     building = _require_building(req.building_id)
     when = pd.to_datetime(req.timestamp)
     expected = predict_kwh(building, when, req.model_dump())
-    cv, protocol = _validated_cv_rmse()
+    cv, protocol, aggregation, n_folds = MM.validated_band(META)
 
     band = None
     if cv:
@@ -285,7 +284,14 @@ def predict(req: PredictRequest):
         "timestamp": req.timestamp,
         "expected_energy_kwh": round(expected, 2),
         "expected_band_1cvrmse": band,
-        "band_basis": {"cv_rmse_pct": cv, "protocol": protocol},
+        "band_basis": {
+            "cv_rmse_pct": cv,
+            "protocol": protocol,
+            # The results table reports the median across these same folds,
+            # which is 16 points lower. Say which this is.
+            "aggregation": aggregation,
+            "n_folds": n_folds,
+        },
         "building": {
             "site_id": building["site_id"],
             "use": building["primaryspaceusage"],

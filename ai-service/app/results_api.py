@@ -14,6 +14,8 @@ import os
 import pandas as pd
 from fastapi import APIRouter, HTTPException
 
+from app import jsonsafe as J
+
 router = APIRouter()
 
 RESULTS_ROOT = "results/ladder"
@@ -233,5 +235,10 @@ def contrasts(task: str):
     con = compute(per_fold)
     if con.empty:
         return {"task": task, "contrasts": []}
-    con = con.where(pd.notna(con), None)
-    return {"task": task, "contrasts": con.to_dict(orient="records")}
+
+    # An absent value here is a finding, not a gap: `min_detectable_effect` is
+    # NaN exactly when no effect in the searched range reaches 80% power at the
+    # observed fold spread, which is what five leave-buildings-out folds buy
+    # you. It has to reach the client as null -- see app/jsonsafe.py for why
+    # the `DataFrame.where(..., None)` that used to stand here did not.
+    return {"task": task, "contrasts": J.records(con)}

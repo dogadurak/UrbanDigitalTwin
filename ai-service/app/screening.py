@@ -125,14 +125,15 @@ def _model_predictions(year=2017, rows_per_building=200):
         pred = df.groupby("building_id")["predicted"].mean()
 
         # Strictest validated protocol available, read from the model's own
-        # metadata so the gate reflects demonstrated error, not a guess.
-        metrics = meta.get("held_out_metrics") or {}
-        cv = protocol = None
-        for name in ("leave_block_out", "leave_buildings_out", "temporal", "random"):
-            if name in metrics and metrics[name].get("cv_rmse_median_pct"):
-                cv, protocol = metrics[name]["cv_rmse_median_pct"], name
-                break
-        return pred, (cv, protocol)
+        # metadata so the gate reflects demonstrated error, not a guess. The
+        # figure is a mean over folds, not a median -- see app/model_metrics.py
+        # -- and the gate is deliberately the conservative one: a wider band
+        # flags fewer buildings, and a triage list that sends an auditor to the
+        # wrong building costs more than one that misses a marginal case.
+        from app import model_metrics as MM
+
+        cv, protocol, aggregation, n_folds = MM.validated_band(meta)
+        return pred, (cv, protocol, aggregation, n_folds)
     except Exception:
         return None, None
 
@@ -158,14 +159,19 @@ def screen(year=2017, peer_threshold=PEER_RATIO_THRESHOLD, use_model=True):
         if pred is not None:
             b["predicted_mean_kwh"] = b.index.map(pred)
             b["model_ratio"] = b["mean_kwh"] / b["predicted_mean_kwh"]
-            cv, protocol = band
+            cv, protocol, aggregation, n_folds = band
             # A deviation inside the model's demonstrated error proves nothing.
             model_gate = 1.0 + (cv or 0) / 100.0
             model_agrees = b["model_ratio"] > model_gate
             model_note = (
                 "Model peer test applied: a building must also exceed its "
                 "predicted consumption by more than the model's validated "
-                "{:.1f}% CV(RMSE) (measured under {}).".format(cv or 0, protocol)
+                "{:.1f}% CV(RMSE) -- the {} across {} {} folds. The median "
+                "across the same folds is lower; the wider figure is used "
+                "here because it flags fewer buildings.".format(
+                    cv or 0,
+                    "mean" if aggregation == "mean_over_folds" else "median",
+                    n_folds or "the", protocol)
             )
         else:
             model_agrees = pd.Series(True, index=b.index)

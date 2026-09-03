@@ -18,6 +18,8 @@ import numpy as np
 import pandas as pd
 from fastapi import APIRouter, HTTPException
 
+from app import jsonsafe as J
+
 router = APIRouter()
 
 PROCESSED = os.path.join("data", "processed")
@@ -134,9 +136,9 @@ def building_profile(building_id: str, year: int = 2017):
             "eui_wh_m2_h": round(float(df["meter_reading"].mean()) * 1000.0 / b["sqm"], 2)
             if b["sqm"] else None,
         },
-        "by_hour": daily.round(2).to_dict(orient="records"),
-        "by_weekday": weekly.round(2).to_dict(orient="records"),
-        "by_month": monthly.round(2).to_dict(orient="records"),
+        "by_hour": J.records(daily.round(2)),
+        "by_weekday": J.records(weekly.round(2)),
+        "by_month": J.records(monthly.round(2)),
         "has_prediction": "predicted" in df.columns,
     }
 
@@ -188,9 +190,11 @@ def site_summary(site_id: str, year: int = 2017):
         "median_sqm": round(float(per_b["sqm"].median())),
         "median_eui_wh_m2_h": round(float(per_b["eui"].median()), 2),
         "oldest_building": int(per_b["yearbuilt"].min()) if per_b["yearbuilt"].notna().any() else None,
-        "by_use": by_use.to_dict(orient="records"),
-        "top_consumers": per_b.nlargest(5, "mean_kwh").round(1).reset_index()
-            .rename(columns={"mean_kwh": "mean_kwh"}).to_dict(orient="records"),
+        "by_use": J.records(by_use),
+        # `yearbuilt` is NaN here for every building BDG2 has no year for --
+        # about half the portfolio -- and NaN is not JSON, so this endpoint
+        # answered 500 for nine of the eighteen sites. See app/jsonsafe.py.
+        "top_consumers": J.records(per_b.nlargest(5, "mean_kwh").round(1).reset_index()),
     }
 
 
@@ -238,7 +242,7 @@ def eui_by_use(year: int = 2017, min_buildings: int = 10):
     return {
         "year": year,
         "unit": "Wh/m2/h",
-        "uses": table.round(2).to_dict(orient="records"),
+        "uses": J.records(table.round(2)),
         "note": "Measured, not modelled. This spread is why building attributes "
                 "outperform location by 7.7x in the cold-start task.",
     }
