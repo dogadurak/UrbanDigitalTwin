@@ -6,5 +6,9 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    // The default `forks` pool does not come up on Windows here: the worker
+    // never answers and the run dies after sixty seconds having executed
+    // nothing. Threads start immediately and these tests share no state.
+    pool: 'threads',
   }
 })

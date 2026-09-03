@@ -1,0 +1,56 @@
+name: tests
+
+# The Python suite. The dashboard workflow runs the frontend tests because it
+# must not publish a page that disagrees with the analysis; this runs on every
+# push, because a test suite nothing executes is documentation.
+#
+# 99 of the 104 cases need neither a database nor the 276 MB of BDG2 parquet:
+# they are built from synthetic frames. The other five live in
+# tests/test_anomalies.py and open a PostGIS connection, so they run under
+# docker-compose and not here. That exclusion is deliberate and narrow -- it is
+# one file, named, rather than a pattern that could quietly swallow more.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ai-service/**"
+      - ".github/workflows/tests.yml"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  python:
+    name: ai-service (no database, no dataset)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-service
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # The README documents 3.11; requirements.txt pins numpy 1.26 and
+          # pandas 2.2, which have no wheels for 3.13.
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: ai-service/requirements.txt
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}/ai-service
+        run: pytest tests/ -q -ra --ignore=tests/test_anomalies.py
+
+      - name: Are the served metrics still named for what they are
+        # The one defect this suite exists to prevent recurring: a field called
+        # cv_rmse_median_pct that holds a mean, which put two different numbers
+        # for the same quantity on the same screen.
+        env:
+          PYTHONPATH: ${{ github.workspace }}/ai-service
+        run: pytest tests/test_model_metrics.py tests/test_jsonsafe.py tests/test_db.py -q

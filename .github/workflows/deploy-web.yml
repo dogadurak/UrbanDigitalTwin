@@ -1,0 +1,102 @@
+name: dashboard
+
+# Publishes frontend/ to GitHub Pages.
+#
+# The dashboard normally reads a live FastAPI service. Pages runs no processes,
+# so the published build reads frozen responses from `frontend/public/data/` and
+# evaluates the model in the browser from `frontend/public/model/`.
+#
+# NOTE: neither of those is regenerated here, and cannot be. They are produced
+# from 276 MB of BDG2 parquet partitions and the experiment output under
+# `ai-service/results/`, and neither is in the repository. When the analysis
+# changes the developer runs, from ai-service/:
+#
+#     python -m scripts.export_web_data
+#     python -m scripts.export_model_json
+#
+# and commits the result. What CI can do is refuse to publish a build whose
+# data is missing, which is what the checks below are for.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/deploy-web.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a following push queues rather than cancelling.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Is the frozen API data present
+        # Without these the page renders its error state for every panel. A
+        # blank showcase published quietly is worse than a red build.
+        run: |
+          test -s public/data/manifest.json
+          test -s public/data/health.json
+          test -s public/data/buildings.json
+          test -s public/data/results/tasks.json
+
+      - name: Is the model present
+        run: test -s public/model/energy_cold_start.json
+
+      - name: Does the page still agree with the analysis
+        # Three claims the published build cannot be taken on trust for, all
+        # checkable from what is committed:
+        #   - the browser's copy of the model answers what the Python model
+        #     answered, against a fixture of real predictions;
+        #   - the values on screen are the values in the exported files,
+        #     checked by rendering the real components against the real export;
+        #   - the layout still works at phone widths.
+        # What CI cannot check is the export against a live API -- that needs
+        # the parquet partitions. `scripts/verify_web_data.py` does it locally.
+        run: npm test
+
+      - name: Build
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_STATIC_DATA: "1"
+        run: npm run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

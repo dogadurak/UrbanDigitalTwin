@@ -119,9 +119,14 @@ export default function PredictPanel({ health, onBuildingChange }) {
             </div>
           )}
           <p className="text-[10px] leading-relaxed text-slate-500 mt-2">
-            Band = ±1 validated CV(RMSE) ({result.band_basis.cv_rmse_pct}%), measured
-            under <span className="text-slate-400">{result.band_basis.protocol}</span> —
-            the error this model actually showed on cities it had never seen.
+            Band = ±1 validated CV(RMSE) ({result.band_basis.cv_rmse_pct}%) — the{' '}
+            {result.band_basis.aggregation === 'mean_over_folds' ? 'mean' : 'median'}{' '}
+            across{' '}
+            {result.band_basis.n_folds ? `${result.band_basis.n_folds} ` : ''}
+            <span className="text-slate-400">{result.band_basis.protocol}</span> folds,
+            the error this model actually showed on cities it had never seen. The
+            Results tab reports the median across the same folds, which is lower:
+            one city scores far worse than the rest, and a band has to cover it.
           </p>
           {selected && (
             <p className="text-[10px] text-slate-600 mt-1.5">

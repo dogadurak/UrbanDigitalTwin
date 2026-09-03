@@ -7,7 +7,23 @@ import EuiByUse from './components/EuiByUse';
 import ScreeningPanel from './components/ScreeningPanel';
 import DiagnosticsPanel from './components/DiagnosticsPanel';
 import AnomalyPanel from './components/AnomalyPanel';
-import { api, scoreColor, SCORE_STOPS } from './api';
+import { api, isStatic, staticInfo, scoreColor, SCORE_STOPS } from './api';
+
+/**
+ * The width the reader last dragged the panel to, or the default.
+ *
+ * Reading `localStorage` can throw, not just return null: a browser set to
+ * block site data raises SecurityError on the property itself. This runs
+ * inside the initialiser of the top-level component, so an unguarded read
+ * takes the whole page down to a blank screen over a remembered pane width.
+ */
+function readRememberedWidth() {
+  try {
+    return Number(window.localStorage.getItem('bei.panelWidth')) || 500;
+  } catch {
+    return 500;
+  }
+}
 
 /**
  * A results dashboard, not a simulation. Every value is read from the
@@ -33,14 +49,37 @@ export default function App() {
   };
   const [buildingId, setBuildingId] = useState('');
   const [error, setError] = useState(null);
+  // Null on a live build. On the published one it carries the date the figures
+  // were frozen, which the footer states.
+  const [snapshot, setSnapshot] = useState(null);
+
+  // Below this the two panes cannot both be useful, so they stack instead of
+  // sitting side by side. A 500px panel next to a map on a 375px phone leaves
+  // the map exactly zero pixels wide, and the root is overflow-hidden, so the
+  // panel is clipped rather than scrolled: the page shows neither.
+  const NARROW_PX = 860;
+  const [narrow, setNarrow] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < NARROW_PX,
+  );
 
   // Panel width is draggable and remembered: the ladder table wants room, the
-  // map wants room, and which matters depends on what you are reading.
+  // map wants room, and which matters depends on what you are reading. The
+  // remembered value is clamped to this viewport -- it was stored on whatever
+  // screen the reader last used, which may have been a much wider one.
   const [panelWidth, setPanelWidth] = useState(() => {
-    const saved = typeof window !== 'undefined' && window.localStorage.getItem('bei.panelWidth');
-    return saved ? Number(saved) : 500;
+    if (typeof window === 'undefined') return 500;
+    return Math.max(Math.min(readRememberedWidth(), window.innerWidth - 320), 320);
   });
   const dragging = useRef(false);
+
+  useEffect(() => {
+    const onResize = () => {
+      setNarrow(window.innerWidth < NARROW_PX);
+      setPanelWidth((w) => Math.max(Math.min(w, window.innerWidth - 320), 320));
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   useEffect(() => {
     const onMove = (e) => {
@@ -67,6 +106,7 @@ export default function App() {
   useEffect(() => {
     api.health().then(setHealth).catch((e) => setError(e.message));
     api.tasks().then((d) => setTasks(d.tasks || [])).catch(() => {});
+    staticInfo().then(setSnapshot).catch(() => setSnapshot(null));
     const onHash = () => setTabState(window.location.hash.slice(1) || 'results');
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
@@ -92,7 +132,7 @@ export default function App() {
 
   return (
     <div className="w-full h-screen flex flex-col bg-slate-950 text-slate-200 font-sans overflow-hidden">
-      <header className="border-b border-slate-800 px-5 py-3 flex items-center justify-between shrink-0">
+      <header className="border-b border-slate-800 px-4 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-y-2 shrink-0">
         <div>
           <h1 className="text-base font-semibold tracking-tight">
             Building Energy Intelligence
@@ -128,7 +168,7 @@ export default function App() {
       </header>
 
       {headline && (
-        <div className="border-b border-slate-800 px-5 py-2.5 flex gap-6 items-center shrink-0">
+        <div className="border-b border-slate-800 px-4 sm:px-5 py-2.5 flex flex-wrap gap-x-6 gap-y-2 items-center shrink-0">
           <Metric label="Seasonal naive" value={headline.naive} />
           <Metric label="+ weather" value={headline.m2} />
           <Metric label="+ site identity (control)" value={headline.identity} />
@@ -141,9 +181,9 @@ export default function App() {
         </div>
       )}
 
-      <div className="flex-1 flex min-h-0">
+      <div className={`flex-1 flex min-h-0 ${narrow ? 'flex-col' : ''}`}>
         {/* Map */}
-        <div className="flex-1 relative min-w-0">
+        <div className={`relative min-w-0 min-h-0 ${narrow ? 'h-[45vh] shrink-0' : 'flex-1'}`}>
           {cities?.blocks?.some((b) => b.lat != null) ? (
             <>
               <GlobeMap blocks={cities.blocks} selected={selected} onSelect={setSelected} />
@@ -179,7 +219,8 @@ export default function App() {
           )}
         </div>
 
-        {/* Drag handle */}
+        {/* Drag handle — pointless when the panes are stacked */}
+        {!narrow && (
         <div
           onMouseDown={() => {
             dragging.current = true;
@@ -190,10 +231,12 @@ export default function App() {
           title="Drag to resize · double-click to reset"
           className="w-1.5 shrink-0 cursor-col-resize bg-slate-800 hover:bg-sky-600 transition-colors"
         />
+        )}
 
         {/* Side panel */}
-        <aside style={{ width: panelWidth }}
-          className="border-l border-slate-800 flex flex-col shrink-0">
+        <aside style={narrow ? undefined : { width: panelWidth }}
+          className={`border-slate-800 flex flex-col min-h-0 ${
+            narrow ? 'w-full flex-1 border-t' : 'shrink-0 border-l'}`}>
           <nav className="flex border-b border-slate-800 shrink-0">
             {[['results', 'Results'], ['screening', 'Screening'],
               ['cities', 'Cities'], ['buildings', 'Buildings']].map(
@@ -302,6 +345,16 @@ export default function App() {
           <footer className="px-4 py-3 border-t border-slate-800 text-[10px] text-slate-600 leading-relaxed shrink-0">
             No satellite or OSM feature is used: BDG2 coordinates are city-level with a
             40 km bound. See <code>docs/RESULTS.md</code>.
+            {isStatic && (
+              <div className="mt-1.5 text-slate-500">
+                Published snapshot: every figure here is a response the API returned
+                {snapshot?.generatedAt
+                  ? ` on ${new Date(snapshot.generatedAt).toISOString().slice(0, 10)}`
+                  : ''}
+                , frozen to a file. Predictions are not frozen — the model itself runs
+                in this page. Run the service locally for live data.
+              </div>
+            )}
             {error && <div className="text-rose-500 mt-1">{error}</div>}
           </footer>
         </aside>
