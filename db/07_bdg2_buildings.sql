@@ -9,6 +9,10 @@
 -- the city", with every building within a 40 km radius, so they identify a site
 -- rather than locate a building. See app/data_engineering/leakage.py.
 
+-- PostGIS supplies the geometry type below. Declared here rather than relied on
+-- from another file: this schema has to stand on its own.
+CREATE EXTENSION IF NOT EXISTS postgis;
+
 CREATE TABLE IF NOT EXISTS bdg2_buildings (
     building_id        VARCHAR(80) PRIMARY KEY,
     site_id            VARCHAR(40) NOT NULL,

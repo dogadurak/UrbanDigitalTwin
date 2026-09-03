@@ -21,7 +21,6 @@ logs/
 # --- Caches ---
 cache/
 .cache/
-backend/data_ingestion/raw_data/
 
 # --- Derived datasets (regenerable: see ai-service/app/data_engineering/) ---
 ai-service/data/pilot/
@@ -31,7 +30,10 @@ ai-service/data/training/
 ai-service/data/bdg2/
 
 # --- Experiment outputs (regenerable; provenance in results/README.md) ---
-results/
+# Anchored. An unanchored `results/` matches a directory of that name at any
+# depth, which silently swallowed frontend/public/data/results/ -- the frozen
+# experiment responses the published dashboard reads.
+/results/
 
 # --- Environment ---
 .env
@@ -46,3 +48,10 @@ Thumbs.db
 # --- Derived model artefacts (regenerate: app.experiments.train_production) ---
 # The served model and its metadata are tracked; nothing else in saved/ is.
 ai-service/results/
+
+# --- The published dashboard's data is tracked, deliberately -----------------
+# frontend/public/data/ and frontend/public/model/ are written by
+# ai-service/scripts/export_*.py from the parquet partitions and the experiment
+# output, neither of which is in git. CI therefore cannot regenerate them: they
+# are committed, the same way AHPDrought commits its summary.json. Nothing
+# below should be added that would exclude them.

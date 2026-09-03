@@ -95,36 +95,11 @@ services:
       - DB_PASS=geotwin_password
     restart: always
 
-  backend:
-    build: ./backend
-    container_name: geotwin-backend
-    depends_on:
-      # PostGIS only. Orion-LD and Mongo are behind the `fiware` profile; the
-      # GIS endpoints this service exposes read PostGIS directly and do not
-      # need a context broker.
-      postgis:
-        condition: service_healthy
-    environment:
-      - POSTGRES_USER=geotwin_user
-      - POSTGRES_PASSWORD=geotwin_password
-      - POSTGRES_DB=geotwin_db
-      - POSTGRES_HOST=postgis
-      - POSTGRES_PORT=5432
-      - ORION_LD_URL=http://orion-ld:1026/ngsi-ld/v1
-      # Opt in together with the `fiware` compose profile.
-      - FIWARE_ENABLED=${FIWARE_ENABLED:-false}
-    ports:
-      - "3001:3001"
-    volumes:
-      - ./backend:/usr/src/app
-      - /usr/src/app/node_modules
-    restart: always
-
   frontend:
     build: ./frontend
     container_name: geotwin-frontend
     depends_on:
-      - backend
+      - ai-service
     ports:
       - "5173:5173"
     volumes:
